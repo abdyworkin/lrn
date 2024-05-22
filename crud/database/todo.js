@@ -23,7 +23,6 @@ module.exports = {
         return new Promise((resolve, reject) => {
             db.get(`INSERT INTO todo (title, complete) VALUES (?, ?) RETURNING *`, [title, false], (err, rows) => {
                 if(err) return reject(err)
-                console.log('insert data', rows, err)
                 resolve(rows)
             })
         })
