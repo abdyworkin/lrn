@@ -1,5 +1,5 @@
 const sqlite3 = require('sqlite3').verbose()
-const db = new sqlite3.Database('todos.db')
+const db = new sqlite3.Database(process.env.DATABASE_FILE)
 
 db.run(`
     CREATE TABLE IF NOT EXISTS todo (
