@@ -1,7 +1,7 @@
 import express from 'express'
 import { SERVER_PORT } from './default.env'
 import { apiRouter } from './routes/apiRouter'
-import { AppDataSource, SqliteSource } from './database/sources'
+import { AppDataSource } from './database/sources'
 import { exit } from 'process'
 
 (async () => {

@@ -9,4 +9,20 @@ export const SqliteSource = new DataSource({
     entities: [TodoModel],
 })
 
-export const AppDataSource = SqliteSource
+export const PostgresSource = new DataSource({
+    type: 'postgres',
+    host: 'localhost',
+    port: 5432,
+    username: env.DATABASE_USER,
+    password: env.DATABASE_PASSWORD,
+    database: env.DATABASE_FILE,
+    synchronize: true,
+    entities: [TodoModel],
+})
+
+const sources: Record<string, DataSource> = {
+    'sqlite': SqliteSource,
+    'postgres': PostgresSource
+}
+
+export const AppDataSource = sources[env.DATA_SOURCE]
