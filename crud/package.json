@@ -1,17 +1,26 @@
 {
-  "name": "t1-6",
+  "name": "crud",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "index.ts",
   "scripts": {
-    "start": "node --env-file .env index.js",
-    "dev": "node --watch --env-file .env index.js"
+    "start": "node --env-file .env ./dist/index.js",
+    "dev": "nodemon -i node_modules ./index.ts",
+    "build": "npx tsc"
   },
   "keywords": [],
-  "author": "",
+  "author": "Abdrakhman Safin",
   "license": "ISC",
   "dependencies": {
     "express": "^4.19.2",
     "sqlite3": "^5.1.7"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.12.13",
+    "@types/sqlite3": "^3.1.11",
+    "nodemon": "^3.1.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.5"
   }
 }

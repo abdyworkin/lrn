@@ -1,5 +1,6 @@
-const sqlite3 = require('sqlite3').verbose()
-const db = new sqlite3.Database(process.env.DATABASE_FILE)
+import sqlite3 from 'sqlite3'
+
+export const db = new sqlite3.Database(process.env.DATABASE_FILE || 'todos.db')
 
 db.run(`
     CREATE TABLE IF NOT EXISTS todo (
@@ -8,8 +9,3 @@ db.run(`
         complete BOOLEAN NOT NULL
     )
 `)
-
-
-module.exports = {
-    db
-}
