@@ -25,7 +25,7 @@ export const getTodo: Controller<{ id: string }> = async (req, res) => {
 }
 
 export const addTodo: Controller<{}> = async (req, res) => {
-    await AppDataSource
+    AppDataSource
         .getRepository(TodoModel)
         .insert({ title: req.body.title })
         .then((result) => res.json({ result: true, id: result.generatedMaps[0].id }))
@@ -38,7 +38,7 @@ export const deleteTodo: Controller<{ id: string }> = async (req, res) => {
         return
     }
 
-    await AppDataSource
+    AppDataSource
         .getRepository(TodoModel)
         .delete({ id: Number(req.params.id) })
         .then(() => res.json({ result: true }))
@@ -51,7 +51,7 @@ export const updateTodo: Controller<{ id: string }> = async (req, res) => {
         return
     }
 
-    await AppDataSource
+    AppDataSource
         .getRepository(TodoModel)
         .update({ id: Number(req.params.id) }, { title: req.body.title })
         .then(() => res.json({ result: true }))
@@ -65,7 +65,7 @@ export const toggleTodo: Controller<{ id: string }> = async (req, res) => {
         return
     }
 
-    await AppDataSource
+    AppDataSource
         .createQueryBuilder()
         .update(TodoModel)
         .set({
