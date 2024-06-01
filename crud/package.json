@@ -2,10 +2,10 @@
   "name": "crud",
   "version": "1.0.0",
   "description": "",
-  "main": "index.ts",
+  "main": "src/index.ts",
   "scripts": {
     "start": "node --env-file .env ./dist/index.js",
-    "dev": "nodemon -i node_modules ./index.ts",
+    "dev": "nodemon -i node_modules .src/index.ts",
     "build": "npx tsc"
   },
   "keywords": [],
