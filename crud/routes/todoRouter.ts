@@ -1,12 +1,12 @@
 import { Router } from 'express'
-import * as todoControllers from './../controllers/todo'
+import controllers from '../controllers'
 
 export const todoRouter = Router()
 
-todoRouter.get('/', todoControllers.getTodos)
-todoRouter.get('/:id', todoControllers.getTodo)
-todoRouter.post('/', todoControllers.addTodo)
-todoRouter.delete('/:id', todoControllers.deleteTodo)
-todoRouter.put('/:id', todoControllers.updateTodo)
-todoRouter.patch('/:id', todoControllers.toggleTodo)
+todoRouter.get('/', controllers.todo.getTodos)
+todoRouter.get('/:id', controllers.todo.getTodo)
+todoRouter.post('/', controllers.todo.addTodo)
+todoRouter.delete('/:id', controllers.todo.deleteTodo)
+todoRouter.put('/:id', controllers.todo.updateTodo)
+todoRouter.patch('/:id', controllers.todo.toggleTodo)
 
