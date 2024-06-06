@@ -1,3 +1,9 @@
-crud/node_modules
+node_modules
+dist
+
+# CRUD application
 crud/todos.db
-crud/dist
+crud/.env
+
+# Nest application
+nest-practice
