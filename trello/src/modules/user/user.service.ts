@@ -1,8 +1,7 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { User } from './user.repo';
+import { User } from 'src/entities/user';
 import { Repository } from 'typeorm';
-import { hash } from  'bcryptjs'
 
 @Injectable()
 export class UserService {
@@ -16,7 +15,8 @@ export class UserService {
     }
 
     async findUserById(id: number): Promise<User | null> {
-        return this.userRepository.findOneBy({ id })
+        const user = await this.userRepository.findOne({ where: { id }, relations: [ 'projects', 'projects.project'] })
+        return user
     }
 
     async createUser(username: string, password: string) {

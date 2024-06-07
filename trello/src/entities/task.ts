@@ -1,6 +1,6 @@
-import { List } from "src/project/project.repo";
-import { User } from "src/user/user.repo";
-import { Column, Entity, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne } from "typeorm"
+import { List } from "./list"
+import { User } from "./user"
 
 @Entity('tasks')
 export class Task {
@@ -13,12 +13,9 @@ export class Task {
     @Column({ type: 'varchar', length: 1500, nullable: true })
     description: string
 
-    @ManyToOne(() => User)   
-    author: number
-
     @Column({ type: 'int', nullable: false })
     position: number
 
-    @ManyToOne(() => List, list => list.id)
-    list: number
+    @ManyToOne(() => List)
+    list: List
 }

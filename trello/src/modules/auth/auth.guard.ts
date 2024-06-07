@@ -1,17 +1,14 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from "@nestjs/common";
+import { CanActivate, ExecutionContext, Inject, Injectable, UnauthorizedException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
-import { InjectRepository } from "@nestjs/typeorm";
 import { Request } from "express";
-import { User } from "src/user/user.repo";
-import { UserService } from "src/user/user.service";
-import { Repository } from "typeorm";
-
+import { UserService } from "src/modules/user/user.service";
 
 
 @Injectable()
 export class AuthGuard implements CanActivate {
     constructor(
         private jwtService: JwtService,
+        @Inject()
         private userSerivce: UserService,
     ) {}
 
@@ -24,8 +21,9 @@ export class AuthGuard implements CanActivate {
         try {
             const payload = this.jwtService.verify(token)
             const user = await this.userSerivce.findUserById(payload.id)
-
+            
             req.user = user
+            
         } catch (e) {
             throw new UnauthorizedException(e)
         }

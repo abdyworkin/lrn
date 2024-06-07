@@ -1,13 +1,23 @@
 import { Module } from '@nestjs/common';
-import { AuthModule } from './auth/auth.module';
+import { AuthModule } from './modules/auth/auth.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { UserModule } from './user/user.module';
-import { ProjectModule } from './project/project.module';
-import { TaskModule } from './task/task.module';
-import { User } from './user/user.repo';
-import { List, Project, UserToProject } from './project/project.repo';
-import { Task } from './task/task.repo';
+import { UserModule } from './modules/user/user.module';
+import { ProjectModule } from './modules/project/project.module';
+import { TaskModule } from './modules/task/task.module';
 import { ConfigModule } from '@nestjs/config';
+import { User } from './entities/user';
+import { List } from './entities/list';
+import { Project } from './entities/project';
+import { Task } from './entities/task';
+import { UserToProject } from './entities/user_to_project';
+
+const entities = [
+  User, 
+  Project, 
+  Task, 
+  UserToProject, 
+  List
+]
 
 @Module({
   imports: [
@@ -27,7 +37,7 @@ import { ConfigModule } from '@nestjs/config';
       username: process.env.POSTGRES_USER || 'root',
       password: process.env.POSTGRES_PASSWORD || 'root',
       database: process.env.POSTGRES_DB || 'trello',
-      entities: [User, Task, List, Project, UserToProject],
+      entities: entities,
       synchronize: true
     }),
   ],

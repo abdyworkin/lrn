@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
 import { TaskController } from './task.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Task } from './task.repo';
 import { TaskService } from './task.service';
-import { List } from 'src/project/project.repo';
+import { List } from 'src/entities/list';
+import { Task } from 'src/entities/task';
 
 @Module({
   controllers: [TaskController],
