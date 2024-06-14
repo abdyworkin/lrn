@@ -1,6 +1,6 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { User } from 'src/entities/user';
+import { User } from 'src/modules/user/user.entity';
 import { Repository } from 'typeorm';
 
 @Injectable()
@@ -20,7 +20,7 @@ export class UserService {
     }
 
     async createUser(username: string, password: string) {
-        if (await this.findUserByUsername(username)) { //TODO: оптимизировать
+        if (await this.findUserByUsername(username)) {
             throw new ForbiddenException('auth/user-already-exists')
         }
 

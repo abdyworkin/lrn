@@ -5,11 +5,12 @@ import { UserModule } from './modules/user/user.module';
 import { ProjectModule } from './modules/project/project.module';
 import { TaskModule } from './modules/task/task.module';
 import { ConfigModule } from '@nestjs/config';
-import { User } from './entities/user';
-import { List } from './entities/list';
-import { Project } from './entities/project';
-import { Task } from './entities/task';
-import { UserToProject } from './entities/user_to_project';
+import { User } from './modules/user/user.entity';
+import { ListModule } from './modules/list/list.module';
+import { List } from './modules/list/list.entity';
+import { Project } from './modules/project/project.entity';
+import { Task } from './modules/task/task.entity';
+import { UserToProject } from './entities/user_to_project.entity';
 
 const entities = [
   User, 
@@ -25,6 +26,7 @@ const entities = [
     UserModule,
     ProjectModule,
     TaskModule,
+    ListModule,
 
     ConfigModule.forRoot({
       envFilePath: `.${process.env.NODE_ENV}.env`
@@ -40,6 +42,8 @@ const entities = [
       entities: entities,
       synchronize: true
     }),
+
+    ListModule,
   ],
   controllers: [],
   providers: [],

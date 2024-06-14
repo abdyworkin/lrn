@@ -2,7 +2,7 @@ import { Module, forwardRef } from '@nestjs/common';
 import { UserService } from './user.service';
 import { UserController } from './user.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { User } from 'src/entities/user';
+import { User } from 'src/modules/user/user.entity';
 
 @Module({
   providers: [UserService],

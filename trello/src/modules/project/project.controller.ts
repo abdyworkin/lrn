@@ -3,52 +3,60 @@ import { AuthGuard } from "src/modules/auth/auth.guard";
 import { ProjectService } from "./project.service";
 import { GetUser, UserId } from "src/modules/user/user.decorator";
 import { ProjectAccessGuard, ProjectCreatorGuard } from "./project.guard";
-import { CreateProjectDto, UpdateProjectMetaDto } from "./project.dto";
-import { Project, getProjectOutput } from "src/entities/project";
+import { CreateProjectDto, KickUserFromProjectDto, UpdateProjectMetaDto } from "./project.dto";
 import { GetProject } from "./project.decorator";
-import { User } from "src/entities/user";
+import { User } from "src/modules/user/user.entity";
+import { ListService } from "../list/list.service";
+import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from "@nestjs/swagger";
+import { ResultResponse } from "../app.response";
+import { ProjectOutputData, getProjectOutput, Project } from "./project.entity";
 
+@ApiBearerAuth()
+@ApiTags('project')
 @Controller('project')
+@UseGuards(AuthGuard)
 export class ProjectController {
     constructor(
         private readonly projectService: ProjectService
     ) {}
 
+    @ApiOperation({ summary: 'Получение всех проектов пользователя' })
+    @ApiResponse({ status: 200, type: [ProjectOutputData] })
     @Get('/all')
-    @UseGuards(AuthGuard)
     async getUserAllProjects(@UserId() userId: number) {
-        try {
-            const projects = await this.projectService.getAllUserProjects(userId)
-            return projects
-        } catch(e) {
-            return e
-        }
+        return (await this.projectService.getAllUserProjects(userId)).map(getProjectOutput)
     }
 
-    @Get('/:id')
-    @UseGuards(AuthGuard, ProjectAccessGuard)
+    @ApiOperation({ summary: 'Получение проекта по id' })
+    @ApiResponse({ status: 200, type: ProjectOutputData })
+    @ApiParam({ name: 'projectId', required: true, description: 'ID проекта' })
+    @Get('/:projectId')
+    @UseGuards(ProjectAccessGuard)
     async getProject(
-        @Param('id', ParseIntPipe) id: number,
+        @GetProject() project: Project
     ) {
-        const project = await this.projectService.getProject(id)
-        if(!project) throw new NotFoundException('project/not-found')
-        return project
+        return getProjectOutput(project)
     }
 
+    @ApiOperation({ summary: 'Создание нового проекта' })
+    @ApiResponse({ status: 200, type: ProjectOutputData, description: 'Возвращает поля созданного проекта' })
+    @ApiParam({ name: 'projectId', required: true, description: 'ID проекта' })
     @Post('/create')
-    @UseGuards(AuthGuard)
     async createProject(
         @UserId() userId: number,
-        @Body() body: CreateProjectDto
+        @Body() { title, description }: CreateProjectDto
     ) {
-        const newProject = await this.projectService.createProject(userId, body.title, body.description)
+        const newProject = await this.projectService.createProject({ userId, title, description })
         return newProject
     }
 
-    @Put(':id')
-    @UseGuards(AuthGuard, ProjectAccessGuard, ProjectCreatorGuard)
+    //TODO: может обновить любые данные, исправить
+    @ApiOperation({ summary: 'Обновление метаданных проекта' })
+    @ApiResponse({ status: 200, type: ProjectOutputData, description: 'Возвращает проект с обвноленными полями' })
+    @ApiParam({ name: 'projectId', required: true, description: 'ID проекта' })
+    @Put(':projectId')
+    @UseGuards(ProjectAccessGuard, ProjectCreatorGuard)
     async updateProjectMeta(
-        @Param('id', ParseIntPipe) id: number,
         @GetProject() project: Project,
         @Body() body: UpdateProjectMetaDto
     ) {
@@ -56,10 +64,13 @@ export class ProjectController {
         return affected
     }
 
-    @Delete(':id')
-    @UseGuards(AuthGuard, ProjectAccessGuard, ProjectCreatorGuard)
+
+    @ApiOperation({ summary: "Удаление проекта по id" })
+    @ApiResponse({ status: 200, type: ResultResponse })
+    @ApiParam({ name: 'projectId', required: true, description: 'ID проекта' })
+    @Delete(':projectId')
+    @UseGuards(ProjectAccessGuard, ProjectCreatorGuard)
     async deleteProject(
-        @Param('id', ParseIntPipe) id: number,
         @GetProject() project: Project
     ) {
         return {
@@ -67,20 +78,25 @@ export class ProjectController {
         }
     }
 
-    @Get('/:id/create/invite')
-    @UseGuards(AuthGuard, ProjectAccessGuard)
+    //TODO: задокументировать response как полагается
+    @ApiOperation({ summary: "Создает новый код приглашения в проект" })
+    @ApiResponse({ status: 200,  description: 'Возращает новый код приглашения и время его истечения'})
+    @ApiParam({ name: 'projectId', required: true, description: 'ID проекта' })
+    @Get('/:projectId/create/invite')
+    @UseGuards(ProjectAccessGuard)
     async createInviteLink(
-        @Param(":id", ParseIntPipe) id: number,
         @GetProject() project: Project
     ) {
         const { inviteCode, inviteExpires } = await this.projectService.createInviteCode(project)
         return { inviteCode, inviteExpires }
     }
 
-    @Get('/:id/join/:code')
-    @UseGuards(AuthGuard)
+    @ApiOperation({  summary: 'Эндпоинт для вступления в проект', description: 'Ожидает код приглашения в проект' })
+    @ApiResponse({ status: 200, type: ProjectOutputData })
+    @ApiParam({ name: 'projectId', required: true, description: 'ID проекта' })
+    @Get('/:projectId/join/:code')
     async joinProject(
-        @Param('id', ParseIntPipe) id: number,
+        @Param('projectId', ParseIntPipe) id: number,
         @Param('code') code: string,
         @GetUser() user: User
     ){
@@ -88,4 +104,36 @@ export class ProjectController {
         return getProjectOutput(project)
     }
 
+
+    //TODO: поменять все методы на get или post
+    @ApiOperation({ summary: 'Удаление проекта по id' })
+    @ApiResponse({ status: 200, type: ResultResponse })
+    @ApiParam({ name: 'projectId', required: true, description: 'ID проекта' })
+    @Delete('/:projectId/user/:userId')
+    @UseGuards(ProjectAccessGuard, ProjectCreatorGuard)
+    async kickUser(
+        @Param('userId', ParseIntPipe) userId: number,
+        @GetProject() project: Project,
+        @Body() body: KickUserFromProjectDto,
+    ) {
+        return {
+            result: await this.projectService.kickUser(userId, project, body.ban)
+        }
+    }
+
+    @ApiOperation({ summary: 'Эндпоинт для выхода из проекта по id' })
+    @ApiResponse({ status: 200, type: ResultResponse })
+    @ApiParam({ name: 'projectId', required: true, description: 'ID проекта' })
+    @Get('/:projectId/leave')
+    @UseGuards(ProjectAccessGuard)
+    async leave(
+        @GetProject() project: Project,
+        @GetUser() user: User
+    ) {
+        return {
+            result: await this.projectService.leaveProject(user, project)
+        }
+    }
+
+    
 }
