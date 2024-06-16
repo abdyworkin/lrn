@@ -1,37 +1,48 @@
-import { Injectable } from '@nestjs/common';
-import { DependenciesScanner } from '@nestjs/core/scanner';
+import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from 'src/modules/user/user.entity';
-import { CustomRepositoryCannotInheritRepositoryError, DataSource, Repository, SelectQueryBuilder } from 'typeorm';
+import { DataSource, Repository, SelectQueryBuilder } from 'typeorm';
 import { Task } from './task.entity';
+import { FieldDto } from './task.dto';
+import { Project } from '../project/project.entity';
+import { FieldType } from 'src/entities/project_field.entity';
+import { TaskFieldString } from 'src/entities/task_field_string.entity';
+import { TaskFieldNumber } from 'src/entities/task_field_number.entity';
+import { TaskFieldEnum } from 'src/entities/task_field_enum.entity';
 
 @Injectable()
 export class TaskService {  
-
     constructor(
         @InjectRepository(Task)
         private readonly taskRepository: Repository<Task>,
+        @InjectRepository(TaskFieldString)
+        private readonly taskFieldStringRepository: Repository<TaskFieldString>,
+        @InjectRepository(TaskFieldNumber)
+        private readonly taskFieldNumberRepository: Repository<TaskFieldNumber>,
+        @InjectRepository(TaskFieldEnum)
+        private readonly taskFieldEnumRepository: Repository<TaskFieldEnum>,
         private readonly dataSource: DataSource,
     ) {}
-
 
     async getTask(taskId: number): Promise<Task> {
         const task = await this.taskRepository.findOne({
             where: { id: taskId },
-            relations: [ 'project.users.user' ]
+            relations: [ 'project.users.user', 'stringFields', 'numberFields', 'enumFields', 'author' ]
         })
 
         return task || undefined
     }
 
-
-    async createTask({ title, description, listId, projectId, user }: {
+    async createTask({ title, description, listId, project, user, fields }: {
         title: string,
         description: string,
         listId: number,
-        projectId: number,
-        user: User
+        project: Project,
+        user: User,
+        fields?: FieldDto[]
     }): Promise<Task> {
+        if(!project.lists.find(e => e.id === listId)) throw new NotFoundException(`List id(${listId}) not exists`)
+
         const maxPosition = await this.taskRepository
             .createQueryBuilder('task')
             .select('MAX(task.position)', 'max')
@@ -45,29 +56,131 @@ export class TaskService {
         task.description = description
         task.author = user
         task.authorId = user.id
-        task.projectId = projectId
+        task.projectId = project.id
         task.listId = listId
         task.position = currentPosition
 
-        return await this.taskRepository.save(task)
+        //Идея в том, чтобы потом вызвать минимальное количество .save
+        //TODO: переписать, пусть пробегается по всем полям проекта, и необявленные поля задачи создает со значением null
+        if(fields) {
+            const stringFields = []
+            const numberFields = []
+            const enumFields = []
+
+            project.fields.forEach(field => {
+                const e = fields.find(f => f.id === field.id)
+                switch(field.type) {
+                    case FieldType.String:
+                        if(e !== undefined && typeof e.value !== 'string') throw new BadRequestException(`Field ${field.title} id(${field.id}) must contain string value`)
+
+                        const stringField = new TaskFieldString()
+                        stringField.value = (e?.value as string) || null
+                        stringField.task = task
+                        stringField.projectTaskFieldId = field.id
+                        stringFields.push(stringField)
+                        break
+
+                    case FieldType.Number:
+                        if(e !== undefined && typeof e.value !== 'number') throw new BadRequestException(`Field ${field.title} id(${field.id}) must contain number value`)
+                        const numberField = new TaskFieldNumber()
+                        numberField.value = (e?.value as number) || null
+                        numberField.task = task
+                        numberField.projectTaskFieldId = field.id
+                        numberFields.push(numberField)
+                        break
+
+                    case FieldType.Enum:
+                        if(e !== undefined && typeof e.value !== 'number') throw new BadRequestException(`Field ${field.title} id(${field.id}) must contain enum(0 <= N < ${field.enumOptions.length}) value`)
+                        const index = (e?.value as number) || null
+                        if(e !== undefined && (field.enumOptions.length <= index || index < 0)) throw new BadRequestException(`Field ${field.title} id(${field.id}) must contain enum(0 <= N < ${field.enumOptions.length}) value`)
+
+                        const enumField = new TaskFieldEnum()
+                        enumField.value = index
+                        enumField.task = task
+                        enumField.projectTaskFieldId = field.id
+                        enumFields.push(enumField)
+                        break
+                }
+            })
+
+            if(stringFields.length > 0) await this.taskFieldStringRepository.save(stringFields)
+            if(numberFields.length > 0) await this.taskFieldNumberRepository.save(numberFields)
+            if(enumFields.length > 0) await this.taskFieldEnumRepository.save(enumFields)
+
+
+            await this.taskRepository.save(task)
+
+            task.stringFields = stringFields
+            task.numberFields = numberFields
+            task.enumFields = enumFields
+        }
+
+        return task
     }
 
-    async updateTask({ taskId, title, description }: {
-        taskId: number
+    async updateTask({ project, task, title, description, fields }: {
+        project: Project,
+        task: Task
         title?: string,
         description?: string,
+        fields?: FieldDto[],
     }): Promise<Task> {
-        const result = await this.taskRepository.createQueryBuilder()
-            .update(Task)
-            .set({
-                title,
-                description
-            })
-            .where("id = :taksId", { taskId })
-            .returning('*')
-            .execute()
+        task.title = title || task.title,
+        task.description = description || task.description
 
-        return result.generatedMaps[0] as Task
+        const taskFields = [...task.stringFields, ...task.numberFields, ...task.enumFields]
+        const edittedStringFields = []
+        const edittedNumberFields = []
+        const edittedEnumFields = []
+
+        fields.forEach(fieldUpdate => {
+            const pField = project.fields.find(e => fieldUpdate.id === e.id)
+            if(!pField) throw new BadRequestException(`Field id(${fieldUpdate.id}) does not exist in project id(${project.id})`)
+
+            let tField = taskFields.find(e => e.projectTaskFieldId === fieldUpdate.id)
+
+            switch(pField.type) {
+                case FieldType.Number:
+                    if(typeof fieldUpdate.value !== 'number') throw new BadRequestException(`Field id(${fieldUpdate.id}) must be number`)
+                    if(!tField) tField = new TaskFieldNumber()
+
+                    tField.projectTaskFieldId = fieldUpdate.id
+                    tField.value = fieldUpdate.value
+                    tField.taskId = task.id
+
+                    edittedNumberFields.push(tField)
+                    break
+                case FieldType.String:
+                    if(typeof fieldUpdate.value !== 'string') throw new BadRequestException(`Field id(${fieldUpdate.id}) must be string`)
+                    if(!tField) tField = new TaskFieldString()
+
+                    tField.projectTaskFieldId = fieldUpdate.id
+                    tField.value = fieldUpdate.value
+                    tField.taskId = task.id
+
+                    edittedStringFields.push(tField)
+
+                    break
+                case FieldType.Enum:
+                    if(typeof fieldUpdate.value !== 'number') throw new BadRequestException(`Field id(${fieldUpdate.id}) must be number`)
+                    if(!tField) tField = new TaskFieldEnum()
+
+                    tField.projectTaskFieldId = fieldUpdate.id
+                    tField.value = fieldUpdate.value
+                    tField.taskId = task.id
+
+                    edittedEnumFields.push(tField)
+
+                    break
+            }
+        })
+
+        await this.taskFieldStringRepository.save(edittedStringFields)
+        await this.taskFieldNumberRepository.save(edittedNumberFields)
+        await this.taskFieldEnumRepository.save(edittedEnumFields)
+        await this.taskRepository.save(task)
+
+        return await this.getTask(task.id)
     }
 
     async deleteTask({ taskId }: {
@@ -184,4 +297,5 @@ export class TaskService {
             .execute()
         return result.affected > 0
     }
+
 }

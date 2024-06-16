@@ -1,6 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsNumber, IsOptional, IsString } from "class-validator";
-
+import { IsArray, IsNumber, IsObject, IsOptional, IsString } from "class-validator";
 
 export class CreateTaskDto {
     @ApiProperty({ example: 'Что-то дописать', description: 'Заголовок задачи' })
@@ -14,8 +13,12 @@ export class CreateTaskDto {
     @ApiProperty({ example: '1', description: 'Уникальный идентефикатор списков, в котором находится задача' })
     @IsNumber()
     listId: number
-}
 
+    @ApiProperty({ type: () => [FieldDto], description: "Значения полей" })
+    @IsArray()
+    @IsOptional()
+    fields?: FieldDto[]
+}
 
 export class UpdateTaskDto {
     @ApiProperty({ example: 'Что-то дописать', description: 'Заголовок задачи' })
@@ -27,6 +30,11 @@ export class UpdateTaskDto {
     @IsString()
     @IsOptional()
     description?: string
+
+    @ApiProperty({ type: () => [FieldDto], description: 'Обновленные значений полей' })
+    @IsArray()
+    @IsOptional()
+    fields?: FieldDto[]
 }
 
 export class MoveTaskDto {
@@ -38,4 +46,13 @@ export class MoveTaskDto {
     @IsNumber()
     @IsOptional()
     targetListId?: number
+}
+
+export class FieldDto {
+    @ApiProperty({ example: '1', description: 'Уникальный индентификатор поля' })
+    @IsNumber()
+    id: number
+
+    @ApiProperty({ example: '3000', description: 'Значение указанного поля'})
+    value: number | string // в случае если поле enum, будет приходить порядковый номер варианта значения enum
 }

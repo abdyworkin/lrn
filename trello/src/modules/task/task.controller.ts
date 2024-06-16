@@ -10,7 +10,7 @@ import { GetTask } from './task.decorator';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { ResultResponse } from '../app.response';
 import { Project } from '../project/project.entity';
-import { TaskOutputData, getTaskOutput, Task } from './task.entity';
+import { TaskOutputData, Task } from './task.entity';
 import { TaskEditAccessGuard } from './task.guard';
 
 @ApiBearerAuth()
@@ -29,7 +29,7 @@ export class TaskController {
     async getTaskById(
         @Param('taskId', ParseIntPipe) id: number
     ) {
-        return getTaskOutput(await this.getTaskById(id))
+        return TaskOutputData.get(await this.getTaskById(id))
     }
 
     @ApiOperation({ summary: 'Создание новой задачи' })
@@ -39,14 +39,15 @@ export class TaskController {
     async createTask(
         @GetProject() project: Project,
         @GetUser() user: User,
-        @Body() { title, description, listId }: CreateTaskDto,
+        @Body() { title, description, listId, fields }: CreateTaskDto,
     ) {
-        return getTaskOutput(await this.taskService.createTask({ 
+        return TaskOutputData.get(await this.taskService.createTask({ 
             title, 
             description, 
             listId, 
-            projectId: project.id,
+            project,
             user,
+            fields,
         }))
     }
 
@@ -56,10 +57,11 @@ export class TaskController {
     @Put('/:taskId')
     @UseGuards(TaskEditAccessGuard)
     async updateTask(
-        @Param('taskId') taskId: number,
-        @Body() { title, description }: UpdateTaskDto,
+        @GetProject() project: Project,
+        @GetTask() task: Task,
+        @Body() { title, description, fields }: UpdateTaskDto,
     ){
-        return getTaskOutput(await this.taskService.updateTask({ taskId, title, description }))
+        return TaskOutputData.get(await this.taskService.updateTask({ project, task, fields, title, description }))
     }
 
     @ApiOperation({ summary: 'Удаление задачи по id' })

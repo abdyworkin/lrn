@@ -1,8 +1,11 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinTable, UsingJoinTableIsNotAllowedError, OneToMany } from "typeorm"
-import { User, UserOutputData, getUserOutputData } from "../user/user.entity"
-import { ApiProperty } from "@nestjs/swagger"
+import { User, UserOutputData } from "../user/user.entity"
+import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger"
 import { List } from "../list/list.entity"
 import { Project } from "../project/project.entity"
+import { TaskFieldNumber } from "src/entities/task_field_number.entity"
+import { TaskFieldString } from "src/entities/task_field_string.entity"
+import { TaskFieldEnum } from "src/entities/task_field_enum.entity"
 
 @Entity('tasks')
 export class Task {
@@ -25,6 +28,15 @@ export class Task {
     @Column()
     authorId: number
 
+    @OneToMany(() => TaskFieldNumber, t => t.task)
+    numberFields: TaskFieldNumber[]
+
+    @OneToMany(() => TaskFieldString, t => t.task)
+    stringFields: TaskFieldString[]
+
+    @OneToMany(() => TaskFieldEnum, t => t.task)
+    enumFields: TaskFieldEnum[]
+    
     @ManyToOne(() => List, {
         cascade: true,
         onDelete: "CASCADE"
@@ -47,6 +59,23 @@ export class Task {
 }
 
 export class TaskOutputData {
+    static get(task: Task): TaskOutputData  {
+        let fields = [ ...task.stringFields, ...task.numberFields, ...task.enumFields ].map(e => ({ id: e.projectTaskFieldId, value: e.value }))
+
+        const data: TaskOutputData = {
+            id: task.id,
+            title: task.title,
+            description: task.description,
+            position: task.position,
+            author: UserOutputData.get(task.author),
+            fields: fields.sort((a, b) => a.id - b.id),
+            listId: task.listId,
+            createdAt: task.createdAt
+        }
+
+        return data
+    }
+
     @ApiProperty({ example: '1', description: "Уникальный идетификатор" })
     id: number
 
@@ -62,6 +91,9 @@ export class TaskOutputData {
     @ApiProperty({ type: () => UserOutputData, description: 'Объект пользователя автора задачи' })
     author: UserOutputData
 
+    @ApiProperty({ type: () => [FieldValueOutputData], description: 'Значения полей задачи' })
+    fields: FieldValueOutputData[]
+
     @ApiProperty({ example: '1', description: "Уникальный идетификатор списка, в котором находится задача" })
     listId: number
 
@@ -69,17 +101,14 @@ export class TaskOutputData {
     createdAt: number
 }
 
-// Позже возымеет смысл
-export const getTaskOutput = (task: Task): TaskOutputData => {
-    const data: TaskOutputData = {
-        id: task.id,
-        title: task.title,
-        description: task.description,
-        position: task.position,
-        author: getUserOutputData(task.author) ,
-        listId: task.listId,
-        createdAt: task.createdAt
-    }
 
-    return data
+export class FieldValueOutputData {
+    @ApiProperty({ example: '1', description: "Уникальный идентификатор поля" })
+    id: number
+
+    @ApiPropertyOptional({ example: 'Параметр 1', description: 'Название поля' })
+    title?: string
+
+    @ApiProperty({ example: '2', description: 'Значение поля' })
+    value: number | string
 }

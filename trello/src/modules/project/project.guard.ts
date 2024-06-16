@@ -14,7 +14,7 @@ export class ProjectAccessGuard implements CanActivate {
 
         if(isNaN(Number(req.params.projectId))) throw new BadRequestException("project id must be number")
 
-        const project = await this.projectService.getProject(req.params.projectId)
+        const project = await this.projectService.getProject(Number(req.params.projectId))
 
         if(!project) throw new NotFoundException('project/not-found')
 

@@ -7,7 +7,7 @@ import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags, ApiUnproce
 import { ResultResponse } from '../app.response';
 import { GetProject } from '../project/project.decorator';
 import { Project } from '../project/project.entity';
-import { ListOutputData, getListOutput } from './list.entity';
+import { ListOutputData } from './list.entity';
 
 
 //TODO: передеать под ProjectAccessGuard
@@ -28,7 +28,7 @@ export class ListController {
         @Param('listId', ParseIntPipe) listId: number 
     ) {
         const list = await this.listService.getListById(listId)
-        return getListOutput(list)
+        return ListOutputData.get(list)
     }
 
     @ApiOperation({ summary: 'Создание нового списка в проекте' })
@@ -45,7 +45,7 @@ export class ListController {
             description,
             projectId: project.id
         })
-        return getListOutput(list)
+        return ListOutputData.get(list)
     }
 
     @ApiOperation({ summary: 'Обновление данных проекта' })

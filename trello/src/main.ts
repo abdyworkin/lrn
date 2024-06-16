@@ -8,7 +8,7 @@ async function bootstrap() {
   app.useGlobalPipes(new ValidationPipe())
 
   const config = new DocumentBuilder()
-    .setTitle("Задание 13")
+    .setTitle("Trellolike")
     .addBearerAuth()
     .build()
 

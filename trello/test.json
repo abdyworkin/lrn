@@ -1,0 +1,48 @@
+[
+  {
+    "id": 4,
+    "title": "Важный проект",
+    "description": "Выполняем тут важные дела для важного проекта",
+    "inviteCode": "$2a$10$9vixCtlLFBeVSCHfKjet3ex.akQHXU5j1iZcmyG8a9.gnGZtL.XAi",
+    "fields": [
+      {
+        "id": 8,
+        "title": "Важность задачи",
+        "type": "enum",
+        "enumOptions": [
+          {
+            "id": 7,
+            "fieldId": 8,
+            "option": "Важно"
+          },
+          {
+            "id": 8,
+            "fieldId": 8,
+            "option": "Неважно"
+          }
+        ]
+      },
+      {
+        "id": 10,
+        "title": "Строчное значение",
+        "type": "string",
+        "enumOptions": []
+      },
+      {
+        "id": 9,
+        "title": "Числовое значение",
+        "type": "number",
+        "enumOptions": []
+      }
+    ],
+    "lists": [],
+    "users": [
+      {
+        "id": 1,
+        "username": "lehazver2012",
+        "role": "creator"
+      }
+    ],
+    "createdAt": "2024-06-16T05:30:36.157Z"
+  }
+]

@@ -1,7 +1,7 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, OneToMany, JoinTable } from "typeorm"
 import { ApiProperty } from "@nestjs/swagger"
 import { Project } from "../project/project.entity"
-import { Task, TaskOutputData, getTaskOutput } from "../task/task.entity"
+import { Task, TaskOutputData } from "../task/task.entity"
 
 @Entity('lists')
 export class List {
@@ -32,6 +32,20 @@ export class List {
 }
 
 export class ListOutputData {
+    static get(list: List): ListOutputData {
+        const data: ListOutputData = {
+            id: list.id,
+            title: list.title,
+            description: list.description,
+            position: list.position,
+            projectId: list.projectId,
+            tasks: list.tasks?.sort((a, b) => a.position - b.position).map(TaskOutputData.get) || [],
+            createdAt: list.createdAt
+        }
+    
+        return data
+    }
+
     @ApiProperty({ example: '1', description: 'Уникальный идентефикатор' })
     id: number
 
@@ -52,18 +66,4 @@ export class ListOutputData {
     
     @ApiProperty({ example: '1234512341234', description: "Временная метка создания задачи" })
     createdAt: number
-}
-
-export const getListOutput = (list: List): ListOutputData => {
-    const data: ListOutputData = {
-        id: list.id,
-        title: list.title,
-        description: list.description,
-        position: list.position,
-        projectId: list.projectId,
-        tasks: list.tasks?.sort((a, b) => a.position - b.position).map(getTaskOutput) || [],
-        createdAt: list.createdAt
-    }
-
-    return data
 }

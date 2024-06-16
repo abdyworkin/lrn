@@ -19,17 +19,18 @@ export class User {
 
 
 export class UserOutputData {
+    static get(u: User): UserOutputData {
+        const data: UserOutputData = {
+            id: u.id,
+            username: u.username
+        }
+
+        return data
+    }
+
     @ApiProperty({ example: '1', description: 'Уникальный идентификатор' })
     id: number
 
     @ApiProperty({ example: 'ivan1234', description: 'Уникальное имя пользователя' })
     username: string
-}
-
-
-export const getUserOutputData = (u: User) => {
-    return {
-        id: u.id,
-        username: u.username
-    }
 }

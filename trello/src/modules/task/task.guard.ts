@@ -1,6 +1,7 @@
 import { BadRequestException, CanActivate, ExecutionContext, ForbiddenException, Inject, NotFoundException } from "@nestjs/common";
 import { Project } from "../project/project.entity";
 import { ProjectRoles } from "../../entities/user_to_project.entity";
+import { Task } from "./task.entity";
 
 export class TaskEditAccessGuard implements CanActivate {
     async canActivate(context: ExecutionContext) {
@@ -9,7 +10,16 @@ export class TaskEditAccessGuard implements CanActivate {
         if(isNaN(Number(req.params.taskId))) throw new BadRequestException("taskId must be number")
 
         const project = req.project as Project
-        const task = project.tasks.find(e => e.id === Number(req.params.taskId))
+        let task: Task | undefined
+        
+        for(let list of project.lists) {
+            for(let t of list.tasks) {
+                if(t.id === Number(req.params.taskId)) {
+                    task = t
+                    break
+                }
+            }
+        }
 
         if(!task) throw new NotFoundException()
 

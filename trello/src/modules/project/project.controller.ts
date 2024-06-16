@@ -3,13 +3,13 @@ import { AuthGuard } from "src/modules/auth/auth.guard";
 import { ProjectService } from "./project.service";
 import { GetUser, UserId } from "src/modules/user/user.decorator";
 import { ProjectAccessGuard, ProjectCreatorGuard } from "./project.guard";
-import { CreateProjectDto, KickUserFromProjectDto, UpdateProjectMetaDto } from "./project.dto";
+import { AddFieldDto, CreateProjectDto, KickUserFromProjectDto, UpdateProjectMetaDto } from "./project.dto";
 import { GetProject } from "./project.decorator";
 import { User } from "src/modules/user/user.entity";
-import { ListService } from "../list/list.service";
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from "@nestjs/swagger";
 import { ResultResponse } from "../app.response";
-import { ProjectOutputData, getProjectOutput, Project } from "./project.entity";
+import { ProjectOutputData, Project } from "./project.entity";
+import { ProjectTaskFieldOutputData } from "src/entities/project_field.entity";
 
 @ApiBearerAuth()
 @ApiTags('project')
@@ -24,7 +24,7 @@ export class ProjectController {
     @ApiResponse({ status: 200, type: [ProjectOutputData] })
     @Get('/all')
     async getUserAllProjects(@UserId() userId: number) {
-        return (await this.projectService.getAllUserProjects(userId)).map(getProjectOutput)
+        return (await this.projectService.getAllUserProjects(userId)).map(ProjectOutputData.get)
     }
 
     @ApiOperation({ summary: 'Получение проекта по id' })
@@ -35,19 +35,19 @@ export class ProjectController {
     async getProject(
         @GetProject() project: Project
     ) {
-        return getProjectOutput(project)
+        return ProjectOutputData.get(project)
     }
 
+    //TODO: add single/multiple fields
     @ApiOperation({ summary: 'Создание нового проекта' })
     @ApiResponse({ status: 200, type: ProjectOutputData, description: 'Возвращает поля созданного проекта' })
-    @ApiParam({ name: 'projectId', required: true, description: 'ID проекта' })
     @Post('/create')
     async createProject(
-        @UserId() userId: number,
-        @Body() { title, description }: CreateProjectDto
+        @GetUser() user: User,
+        @Body() { title, description, fields }: CreateProjectDto
     ) {
-        const newProject = await this.projectService.createProject({ userId, title, description })
-        return newProject
+        const newProject = await this.projectService.createProject({ user, title, description, fields })
+        return ProjectOutputData.get(newProject)
     }
 
     //TODO: может обновить любые данные, исправить
@@ -60,7 +60,12 @@ export class ProjectController {
         @GetProject() project: Project,
         @Body() body: UpdateProjectMetaDto
     ) {
-        const affected = await this.projectService.updateProjectMeta(project, body.title, body.description)
+        const affected = await this.projectService.updateProjectMeta({
+            project, 
+            title: body.title, 
+            description: body.description,
+            fields: body.fields
+        })
         return affected
     }
 
@@ -101,12 +106,12 @@ export class ProjectController {
         @GetUser() user: User
     ){
         const project = await this.projectService.joinByCode(code, id,  user)
-        return getProjectOutput(project)
+        return ProjectOutputData.get(project)
     }
 
 
     //TODO: поменять все методы на get или post
-    @ApiOperation({ summary: 'Удаление проекта по id' })
+    @ApiOperation({ summary: 'Исключение пользователя из проекта по id' })
     @ApiResponse({ status: 200, type: ResultResponse })
     @ApiParam({ name: 'projectId', required: true, description: 'ID проекта' })
     @Delete('/:projectId/user/:userId')
@@ -135,5 +140,22 @@ export class ProjectController {
         }
     }
 
+    //Add multiple fields
+    @ApiOperation({ summary: 'Добавление поля для существующего проекта' })
+    @ApiResponse({ status: 200, type: ProjectTaskFieldOutputData })
+    @ApiParam({ name: 'projectId', required: true, description: 'ID проекта' })
+    @Post('/:projectId/addfield')
+    @UseGuards(ProjectAccessGuard)
+    async addField(
+        @GetProject() project: Project,
+        @Body() body: AddFieldDto
+    ) {
+        return ProjectTaskFieldOutputData
+            .get(await this.projectService.addField(project.id, {
+                type: body.type,
+                title: body.title,
+                options: body.options
+            }))
+    }
     
 }

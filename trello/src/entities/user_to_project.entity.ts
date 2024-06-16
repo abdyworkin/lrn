@@ -1,5 +1,5 @@
 import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
-import { User, UserOutputData, getUserOutputData } from "../modules/user/user.entity";
+import { User, UserOutputData } from "../modules/user/user.entity";
 import { ApiOperation, ApiProperty } from "@nestjs/swagger";
 import { Project } from "../modules/project/project.entity";
 
@@ -40,6 +40,16 @@ export class UserToProject {
 }
 
 export class ProjectUserOutputData {
+    static get(p: UserToProject): ProjectUserOutputData {
+        const data: ProjectUserOutputData = {
+            id: p.user.id,
+            username: p.user.username,
+            role: p.role
+        }
+
+        return data
+    }
+
     @ApiProperty({ example: '1', description: 'Уникальный идентификатор' })
     id: number
 
@@ -48,11 +58,4 @@ export class ProjectUserOutputData {
 
     @ApiProperty({ example: 'creator', description: 'Роль пользователя в проекте' })
     role: string
-}
-
-export const getUserFromRelation = (u: UserToProject): ProjectUserOutputData => {
-    return {
-        ...getUserOutputData(u.user),
-        role: u.role,
-    } 
 }

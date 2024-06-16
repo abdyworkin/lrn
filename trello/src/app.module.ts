@@ -11,13 +11,23 @@ import { List } from './modules/list/list.entity';
 import { Project } from './modules/project/project.entity';
 import { Task } from './modules/task/task.entity';
 import { UserToProject } from './entities/user_to_project.entity';
+import { ProjectTaskFieldEnumOptions, ProjectTaskFields } from './entities/project_field.entity';
+import { TaskFieldEnum } from './entities/task_field_enum.entity';
+import { TaskFieldString } from './entities/task_field_string.entity';
+import { TaskFieldNumber } from './entities/task_field_number.entity';
 
+//TODO: подключать через директорию
 const entities = [
   User, 
   Project, 
   Task, 
   UserToProject, 
-  List
+  List,
+  ProjectTaskFields,
+  ProjectTaskFieldEnumOptions,
+  TaskFieldEnum,
+  TaskFieldString,
+  TaskFieldNumber,
 ]
 
 @Module({
