@@ -16,7 +16,7 @@ export class UserController {
     @ApiOperation({ summary: 'Получение данных пользователя по ID' })
     @ApiResponse({ status: 200, type: UserOutputData })
     @Get('/:id') 
-    getUserById(@Param('id', ParseIntPipe) id: number) {
-        return this.userService.findUserById(id)
+    async getUserById(@Param('id', ParseIntPipe) id: number) {
+        return UserOutputData.get(await this.userService.findUserById(id))
     }
 }

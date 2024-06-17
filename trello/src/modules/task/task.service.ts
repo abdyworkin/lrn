@@ -133,47 +133,49 @@ export class TaskService {
         const edittedNumberFields = []
         const edittedEnumFields = []
 
-        fields.forEach(fieldUpdate => {
-            const pField = project.fields.find(e => fieldUpdate.id === e.id)
-            if(!pField) throw new BadRequestException(`Field id(${fieldUpdate.id}) does not exist in project id(${project.id})`)
+        if(fields) {
+            fields.forEach(fieldUpdate => {
+                const pField = project.fields.find(e => fieldUpdate.id === e.id)
+                if(!pField) throw new BadRequestException(`Field id(${fieldUpdate.id}) does not exist in project id(${project.id})`)
 
-            let tField = taskFields.find(e => e.projectTaskFieldId === fieldUpdate.id)
+                let tField = taskFields.find(e => e.projectTaskFieldId === fieldUpdate.id)
 
-            switch(pField.type) {
-                case FieldType.Number:
-                    if(typeof fieldUpdate.value !== 'number') throw new BadRequestException(`Field id(${fieldUpdate.id}) must be number`)
-                    if(!tField) tField = new TaskFieldNumber()
+                switch(pField.type) {
+                    case FieldType.Number:
+                        if(typeof fieldUpdate.value !== 'number') throw new BadRequestException(`Field id(${fieldUpdate.id}) must be number`)
+                        if(!tField) tField = new TaskFieldNumber()
 
-                    tField.projectTaskFieldId = fieldUpdate.id
-                    tField.value = fieldUpdate.value
-                    tField.taskId = task.id
+                        tField.projectTaskFieldId = fieldUpdate.id
+                        tField.value = fieldUpdate.value
+                        tField.taskId = task.id
 
-                    edittedNumberFields.push(tField)
-                    break
-                case FieldType.String:
-                    if(typeof fieldUpdate.value !== 'string') throw new BadRequestException(`Field id(${fieldUpdate.id}) must be string`)
-                    if(!tField) tField = new TaskFieldString()
+                        edittedNumberFields.push(tField)
+                        break
+                    case FieldType.String:
+                        if(typeof fieldUpdate.value !== 'string') throw new BadRequestException(`Field id(${fieldUpdate.id}) must be string`)
+                        if(!tField) tField = new TaskFieldString()
 
-                    tField.projectTaskFieldId = fieldUpdate.id
-                    tField.value = fieldUpdate.value
-                    tField.taskId = task.id
+                        tField.projectTaskFieldId = fieldUpdate.id
+                        tField.value = fieldUpdate.value
+                        tField.taskId = task.id
 
-                    edittedStringFields.push(tField)
+                        edittedStringFields.push(tField)
 
-                    break
-                case FieldType.Enum:
-                    if(typeof fieldUpdate.value !== 'number') throw new BadRequestException(`Field id(${fieldUpdate.id}) must be number`)
-                    if(!tField) tField = new TaskFieldEnum()
+                        break
+                    case FieldType.Enum:
+                        if(typeof fieldUpdate.value !== 'number') throw new BadRequestException(`Field id(${fieldUpdate.id}) must be number`)
+                        if(!tField) tField = new TaskFieldEnum()
 
-                    tField.projectTaskFieldId = fieldUpdate.id
-                    tField.value = fieldUpdate.value
-                    tField.taskId = task.id
+                        tField.projectTaskFieldId = fieldUpdate.id
+                        tField.value = fieldUpdate.value
+                        tField.taskId = task.id
 
-                    edittedEnumFields.push(tField)
+                        edittedEnumFields.push(tField)
 
-                    break
-            }
-        })
+                        break
+                }
+            })
+        }
 
         await this.taskFieldStringRepository.save(edittedStringFields)
         await this.taskFieldNumberRepository.save(edittedNumberFields)

@@ -25,11 +25,12 @@ export class TaskController {
     @ApiOperation({ summary: 'Получение задачи по id' })
     @ApiResponse({ status: 200, type: TaskOutputData })
     @ApiParam({ name: 'projectId', required: true, description: 'ID проекта' })
+    @ApiParam({ name: 'taskId', required: true, description: 'ID задачи' })
     @Get('/:taskId')
     async getTaskById(
-        @Param('taskId', ParseIntPipe) id: number
+        @GetTask() task: Task // Таск уже подгружен в мидлваре
     ) {
-        return TaskOutputData.get(await this.getTaskById(id))
+        return TaskOutputData.get(task)
     }
 
     @ApiOperation({ summary: 'Создание новой задачи' })
@@ -54,6 +55,7 @@ export class TaskController {
     @ApiOperation({ summary: 'Обновление полей задачи' })
     @ApiResponse({ status: 200, type: TaskOutputData, description: 'Возвращает данные задачи с обновленными полями' })
     @ApiParam({ name: 'projectId', required: true, description: 'ID проекта' })
+    @ApiParam({ name: 'taskId', required: true, description: 'ID задачи' })
     @Put('/:taskId')
     @UseGuards(TaskEditAccessGuard)
     async updateTask(
@@ -67,6 +69,7 @@ export class TaskController {
     @ApiOperation({ summary: 'Удаление задачи по id' })
     @ApiResponse({ status: 200, type: ResultResponse })
     @ApiParam({ name: 'projectId', required: true, description: 'ID проекта' })
+    @ApiParam({ name: 'taskId', required: true, description: 'ID задачи' })
     @Delete('/:taskId')
     @UseGuards(TaskEditAccessGuard)
     async deleteTask(

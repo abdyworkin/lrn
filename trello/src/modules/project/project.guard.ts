@@ -4,19 +4,10 @@ import { ProjectRoles } from "../../entities/user_to_project.entity";
 
 @Injectable()
 export class ProjectAccessGuard implements CanActivate {
-    constructor(
-        @Inject()
-        private readonly projectService: ProjectService
-    ) {}
-
     async canActivate(context: ExecutionContext){
         const req = context.switchToHttp().getRequest()
 
-        if(isNaN(Number(req.params.projectId))) throw new BadRequestException("project id must be number")
-
-        const project = await this.projectService.getProject(Number(req.params.projectId))
-
-        if(!project) throw new NotFoundException('project/not-found')
+        const project = req.project
 
         const projectUserIndex = project.users.findIndex(user => user.userId === req.user.id)
 

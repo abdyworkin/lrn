@@ -10,10 +10,15 @@ import { AddFieldDto, EditFieldDto } from './project.dto';
 
 
 const projectRelations = [
-    'lists.tasks.author', // все задачи, до автора
-    'lists.tasks.project.fields',
-    'users.user', // Все участники проекта
+    'tasks.author', 
+    'tasks.project.fields',
+    'tasks.stringFields',
+    'tasks.numberFields',
+    'tasks.enumFields',
+    'users.user',
     'fields.enumOptions',
+    'lists.tasks.author', 
+    'lists.tasks.project.fields',
     'lists.tasks.stringFields',
     'lists.tasks.numberFields',
     'lists.tasks.enumFields',

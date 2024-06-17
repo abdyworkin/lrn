@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule, RequestMethod } from '@nestjs/common';
 import { AuthModule } from './modules/auth/auth.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UserModule } from './modules/user/user.module';
@@ -15,6 +15,9 @@ import { ProjectTaskFieldEnumOptions, ProjectTaskFields } from './entities/proje
 import { TaskFieldEnum } from './entities/task_field_enum.entity';
 import { TaskFieldString } from './entities/task_field_string.entity';
 import { TaskFieldNumber } from './entities/task_field_number.entity';
+import { ProjectLoadMiddleware } from './modules/project/project.middleware';
+import { RouteInfo } from '@nestjs/common/interfaces';
+import { TaskLoadMiddleware } from './modules/task/task.middleware';
 
 //TODO: подключать через директорию
 const entities = [
@@ -58,4 +61,15 @@ const entities = [
   controllers: [],
   providers: [],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(ProjectLoadMiddleware)
+      .exclude('project/create', 'project/all')
+      .forRoutes({ path: 'project/:projectId/*', method: RequestMethod.ALL })
+
+    consumer
+      .apply(TaskLoadMiddleware)
+      .forRoutes({ path: '*/task/:taskId*', method: RequestMethod.ALL })
+  }
+}

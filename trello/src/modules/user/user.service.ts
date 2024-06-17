@@ -15,7 +15,7 @@ export class UserService {
     }
 
     async findUserById(id: number): Promise<User | null> {
-        const user = await this.userRepository.findOne({ where: { id }, relations: [ 'projects', 'projects.project'] })
+        const user = await this.userRepository.findOne({ where: { id } })
         return user
     }
 

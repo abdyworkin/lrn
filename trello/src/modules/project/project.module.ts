@@ -1,7 +1,7 @@
 import { ProjectController } from './project.controller';
 import { ProjectService } from './project.service';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { MiddlewareConsumer, Module, NestModule, forwardRef } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule, RequestMethod, forwardRef } from '@nestjs/common';
 import { UserModule } from '../user/user.module';
 import { ProjectAccessGuard, ProjectCreatorGuard } from './project.guard';
 import { ListModule } from '../list/list.module';
@@ -19,8 +19,5 @@ import { ProjectTaskFieldEnumOptions, ProjectTaskFields } from 'src/entities/pro
   ],
   exports: [ ProjectService, ProjectAccessGuard ]
 })
-export class ProjectModule implements NestModule {
-  configure(consumer: MiddlewareConsumer) {
-  }
-  
+export class ProjectModule {
 }
