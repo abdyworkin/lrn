@@ -96,6 +96,7 @@ export class ProjectController {
         return { inviteCode, inviteExpires }
     }
 
+    //TODO: без получения доступа
     @ApiOperation({  summary: 'Эндпоинт для вступления в проект', description: 'Ожидает код приглашения в проект' })
     @ApiResponse({ status: 200, type: ProjectOutputData })
     @ApiParam({ name: 'projectId', required: true, description: 'ID проекта' })

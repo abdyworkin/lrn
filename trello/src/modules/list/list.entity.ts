@@ -49,10 +49,10 @@ export class ListOutputData {
     @ApiProperty({ example: '1', description: 'Уникальный идентефикатор' })
     id: number
 
-    @ApiProperty({ example: 'Предстоит сделать', description: 'Заголовок списка задач' })
+    @ApiProperty({ example: 'СПИСОК 1', description: 'Заголовок списка задач' })
     title: string
 
-    @ApiProperty({ example: 'Не стесняемся - берем', description: 'Описание списка задач' })
+    @ApiProperty({ example: 'ОПИСАНИЕ СПИСКА 1', description: 'Описание списка задач' })
     description: string
 
     @ApiProperty({ example: '2', description: 'Номер позиции списка внтури проекта' })

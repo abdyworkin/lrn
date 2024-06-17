@@ -2,11 +2,11 @@ import { ApiProperty } from "@nestjs/swagger";
 import { IsArray, IsNumber, IsObject, IsOptional, IsString } from "class-validator";
 
 export class CreateTaskDto {
-    @ApiProperty({ example: 'Что-то дописать', description: 'Заголовок задачи' })
+    @ApiProperty({ example: 'ЗАДАЧА 1', description: 'Заголовок задачи' })
     @IsString()
     title: string
 
-    @ApiProperty({ example: 'Где-то тут, что-то там, туда-сюда сделай', description: 'Описание задачи' })
+    @ApiProperty({ example: 'ОПИСАНИЕ ЗАДАЧИ 1', description: 'Описание задачи' })
     @IsString()
     description: string
 
@@ -21,12 +21,12 @@ export class CreateTaskDto {
 }
 
 export class UpdateTaskDto {
-    @ApiProperty({ example: 'Что-то дописать', description: 'Заголовок задачи' })
+    @ApiProperty({ example: 'ЗАДАЧА 1', description: 'Заголовок задачи' })
     @IsString()
     @IsOptional()
     title?: string
 
-    @ApiProperty({ example: 'Где-то тут, что-то там, туда-сюда сделай', description: 'Описание задачи' })
+    @ApiProperty({ example: 'ОПИСАНИЕ ЗАДАЧИ 1', description: 'Описание задачи' })
     @IsString()
     @IsOptional()
     description?: string

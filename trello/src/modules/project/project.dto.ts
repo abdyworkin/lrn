@@ -3,11 +3,11 @@ import { IsArray, IsBoolean, IsEnum, IsNumber, IsObject, IsOptional, IsString } 
 import { FieldType } from "src/entities/project_field.entity"
 
 export class CreateProjectDto {
-    @ApiProperty({ example: "Важный проект", description: "Описание проекта" })
+    @ApiProperty({ example: "ПРОЕКТ 1", description: "Описание проекта" })
     @IsString()
     title: string
 
-    @ApiProperty({ example: "Выполняем тут важные дела для важного проекта", description: "Описание проекта"})
+    @ApiProperty({ example: "ОПИСАНИЕ ПРОЕКТА 1", description: "Описание проекта"})
     @IsString()
     description: string
 
@@ -63,7 +63,7 @@ export class EditFieldDto {
     @IsEnum(FieldType)
     type?: FieldType
 
-    @ApiPropertyOptional({ example: 'Важность задачи' })
+    @ApiPropertyOptional({ example: 'НАЗВАНИЕ ПОЛЯ' })
     @IsString()
     title?: string
 
