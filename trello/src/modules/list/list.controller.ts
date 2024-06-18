@@ -1,20 +1,20 @@
 import { Body, Controller, Delete, Get, Param, ParseIntPipe, Post, Put, UseGuards } from '@nestjs/common';
 import { ListService } from './list.service';
 import { AuthGuard } from '../auth/auth.guard';
-import { ProjectAccessGuard, ProjectCreatorGuard } from '../project/project.guard';
 import { CreateListDto, MoveListDto, UpdateListMetaDto } from './list.dto';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags, ApiUnprocessableEntityResponse } from '@nestjs/swagger';
 import { ResultResponse } from '../app.response';
 import { GetProject } from '../project/project.decorator';
 import { Project } from '../project/project.entity';
 import { ListOutputData } from './list.entity';
+import { RoleGuard } from '../role/role.guard';
+import { Role, Roles } from '../role/role.decorator';
 
 
-//TODO: передеать под ProjectAccessGuard
 @ApiBearerAuth()
 @ApiTags('list')
 @Controller('project/:projectId/list')
-@UseGuards(AuthGuard, ProjectAccessGuard)
+@UseGuards(AuthGuard, RoleGuard)
 export class ListController {
     constructor(
         private readonly listService: ListService
@@ -23,6 +23,7 @@ export class ListController {
     @ApiOperation({ summary: 'Получение списка по ID' })
     @ApiResponse({ status: 200, type: ListOutputData })
     @ApiParam({ name: 'projectId', required: true, description: 'ID проекта' })
+    @Roles(Role.User)
     @Get('/:listId')
     async getList(
         @Param('listId', ParseIntPipe) listId: number 
@@ -34,8 +35,8 @@ export class ListController {
     @ApiOperation({ summary: 'Создание нового списка в проекте' })
     @ApiResponse({ status: 200, type: ListOutputData })
     @ApiParam({ name: 'projectId', required: true, description: 'ID проекта' })
+    @Roles(Role.ProjectCreator)
     @Post()
-    @UseGuards(ProjectCreatorGuard)
     async createList(
         @GetProject() project: Project,
         @Body() { title, description }: CreateListDto
@@ -51,8 +52,8 @@ export class ListController {
     @ApiOperation({ summary: 'Обновление данных проекта' })
     @ApiResponse({ status: 200, type: ListOutputData })
     @ApiParam({ name: 'projectId', required: true, description: 'ID проекта' })
+    @Roles(Role.ProjectCreator)
     @Put('/:listId')
-    @UseGuards(ProjectCreatorGuard)
     async updateListMeta(
         @Param('listId', ParseIntPipe) listId: number,
         @Body() { title, description }: UpdateListMetaDto
@@ -68,8 +69,8 @@ export class ListController {
     @ApiOperation({ summary: 'Удаление списка по ID' })
     @ApiResponse({ status: 200, type: ResultResponse })
     @ApiParam({ name: 'projectId', required: true, description: 'ID проекта' })
+    @Roles(Role.ProjectCreator)
     @Delete('/:listId')
-    @UseGuards(ProjectCreatorGuard)
     async deleteList(
         @Param('listId', ParseIntPipe) listId: number
     ) {
@@ -82,8 +83,8 @@ export class ListController {
     @ApiOperation({ summary: 'Изменение позиционирования List внтури Project' })
     @ApiResponse({ status: 200, type: ResultResponse })
     @ApiParam({ name: 'projectId', required: true, description: 'ID проекта' })
+    @Roles(Role.ProjectCreator)
     @Put('/:listId/move')
-    @UseGuards(ProjectCreatorGuard)
     async moveList(
         @Param('listId', ParseIntPipe) listId: number,
         @Body() { to }: MoveListDto

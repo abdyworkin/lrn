@@ -16,7 +16,6 @@ import { TaskFieldEnum } from './entities/task_field_enum.entity';
 import { TaskFieldString } from './entities/task_field_string.entity';
 import { TaskFieldNumber } from './entities/task_field_number.entity';
 import { ProjectLoadMiddleware } from './modules/project/project.middleware';
-import { RouteInfo } from '@nestjs/common/interfaces';
 import { TaskLoadMiddleware } from './modules/task/task.middleware';
 
 //TODO: подключать через директорию
@@ -57,6 +56,7 @@ const entities = [
     }),
 
     ListModule,
+
   ],
   controllers: [],
   providers: [],
@@ -66,7 +66,7 @@ export class AppModule implements NestModule {
     consumer
       .apply(ProjectLoadMiddleware)
       .exclude('project/create', 'project/all')
-      .forRoutes({ path: 'project/:projectId/*', method: RequestMethod.ALL })
+      .forRoutes({ path: 'project/:projectId*', method: RequestMethod.ALL })
 
     consumer
       .apply(TaskLoadMiddleware)

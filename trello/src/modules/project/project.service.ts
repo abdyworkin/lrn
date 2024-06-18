@@ -83,7 +83,7 @@ export class ProjectService {
         return newProject
     }
 
-    async updateProjectMeta({ project, title, description, fields }: {
+    async updateProject({ project, title, description, fields }: {
         project: Project, 
         fields?: EditFieldDto[],
         title?: string, 

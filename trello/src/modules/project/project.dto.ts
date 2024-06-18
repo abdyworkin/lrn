@@ -17,7 +17,7 @@ export class CreateProjectDto {
     fields?: AddFieldDto[]
 }
 
-export class UpdateProjectMetaDto {
+export class UpdateProjectDto {
     @ApiPropertyOptional({ example: 'Новое название проекта', description: 'Название проекта' })
     @IsOptional()
     @IsString()

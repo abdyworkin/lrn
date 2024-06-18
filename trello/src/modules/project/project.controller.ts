@@ -1,20 +1,21 @@
-import { Body, Controller, Delete, Get, InternalServerErrorException, NotFoundException, Param, ParseIntPipe, Post, Put, UseGuards, UseInterceptors } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, ParseIntPipe, Post, Put, UseGuards, UseInterceptors } from "@nestjs/common";
 import { AuthGuard } from "src/modules/auth/auth.guard";
 import { ProjectService } from "./project.service";
 import { GetUser, UserId } from "src/modules/user/user.decorator";
-import { ProjectAccessGuard, ProjectCreatorGuard } from "./project.guard";
-import { AddFieldDto, CreateProjectDto, KickUserFromProjectDto, UpdateProjectMetaDto } from "./project.dto";
+import { AddFieldDto, CreateProjectDto, KickUserFromProjectDto, UpdateProjectDto } from "./project.dto";
 import { GetProject } from "./project.decorator";
 import { User } from "src/modules/user/user.entity";
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from "@nestjs/swagger";
 import { ResultResponse } from "../app.response";
 import { ProjectOutputData, Project } from "./project.entity";
 import { ProjectTaskFieldOutputData } from "src/entities/project_field.entity";
+import { RoleGuard } from "../role/role.guard";
+import { Role, Roles } from "../role/role.decorator";
 
 @ApiBearerAuth()
 @ApiTags('project')
 @Controller('project')
-@UseGuards(AuthGuard)
+@UseGuards(AuthGuard, RoleGuard)
 export class ProjectController {
     constructor(
         private readonly projectService: ProjectService
@@ -30,8 +31,8 @@ export class ProjectController {
     @ApiOperation({ summary: 'Получение проекта по id' })
     @ApiResponse({ status: 200, type: ProjectOutputData })
     @ApiParam({ name: 'projectId', required: true, description: 'ID проекта' })
+    @Roles(Role.User)
     @Get('/:projectId')
-    @UseGuards(ProjectAccessGuard)
     async getProject(
         @GetProject() project: Project
     ) {
@@ -55,12 +56,12 @@ export class ProjectController {
     @ApiResponse({ status: 200, type: ProjectOutputData, description: 'Возвращает проект с обвноленными полями' })
     @ApiParam({ name: 'projectId', required: true, description: 'ID проекта' })
     @Put(':projectId')
-    @UseGuards(ProjectAccessGuard, ProjectCreatorGuard)
-    async updateProjectMeta(
+    @Roles(Role.ProjectCreator)
+    async updateProject(
         @GetProject() project: Project,
-        @Body() body: UpdateProjectMetaDto
+        @Body() body: UpdateProjectDto
     ) {
-        const affected = await this.projectService.updateProjectMeta({
+        const affected = await this.projectService.updateProject({
             project, 
             title: body.title, 
             description: body.description,
@@ -74,7 +75,7 @@ export class ProjectController {
     @ApiResponse({ status: 200, type: ResultResponse })
     @ApiParam({ name: 'projectId', required: true, description: 'ID проекта' })
     @Delete(':projectId')
-    @UseGuards(ProjectAccessGuard, ProjectCreatorGuard)
+    @Roles(Role.ProjectCreator)
     async deleteProject(
         @GetProject() project: Project
     ) {
@@ -88,7 +89,7 @@ export class ProjectController {
     @ApiResponse({ status: 200,  description: 'Возращает новый код приглашения и время его истечения'})
     @ApiParam({ name: 'projectId', required: true, description: 'ID проекта' })
     @Get('/:projectId/create/invite')
-    @UseGuards(ProjectAccessGuard)
+    @Roles(Role.ProjectCreator)
     async createInviteLink(
         @GetProject() project: Project
     ) {
@@ -116,7 +117,7 @@ export class ProjectController {
     @ApiResponse({ status: 200, type: ResultResponse })
     @ApiParam({ name: 'projectId', required: true, description: 'ID проекта' })
     @Delete('/:projectId/user/:userId')
-    @UseGuards(ProjectAccessGuard, ProjectCreatorGuard)
+    @Roles(Role.ProjectCreator)
     async kickUser(
         @Param('userId', ParseIntPipe) userId: number,
         @GetProject() project: Project,
@@ -131,7 +132,7 @@ export class ProjectController {
     @ApiResponse({ status: 200, type: ResultResponse })
     @ApiParam({ name: 'projectId', required: true, description: 'ID проекта' })
     @Get('/:projectId/leave')
-    @UseGuards(ProjectAccessGuard)
+    @Roles(Role.User)
     async leave(
         @GetProject() project: Project,
         @GetUser() user: User
@@ -146,7 +147,7 @@ export class ProjectController {
     @ApiResponse({ status: 200, type: ProjectTaskFieldOutputData })
     @ApiParam({ name: 'projectId', required: true, description: 'ID проекта' })
     @Post('/:projectId/addfield')
-    @UseGuards(ProjectAccessGuard)
+    @Roles(Role.ProjectCreator)
     async addField(
         @GetProject() project: Project,
         @Body() body: AddFieldDto

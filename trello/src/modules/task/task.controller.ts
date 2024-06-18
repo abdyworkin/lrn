@@ -2,7 +2,6 @@ import { Body, Controller, Delete, Get, InternalServerErrorException, Param, Par
 import { TaskService } from './task.service';
 import { AuthGuard } from '../auth/auth.guard';
 import { CreateTaskDto, MoveTaskDto, UpdateTaskDto } from './task.dto';
-import { ProjectAccessGuard } from '../project/project.guard';
 import { GetProject } from '../project/project.decorator';
 import { GetUser } from '../user/user.decorator';
 import { User } from 'src/modules/user/user.entity';
@@ -11,12 +10,12 @@ import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@ne
 import { ResultResponse } from '../app.response';
 import { Project } from '../project/project.entity';
 import { TaskOutputData, Task } from './task.entity';
-import { TaskEditAccessGuard } from './task.guard';
+import { Role, Roles } from '../role/role.decorator';
 
 @ApiBearerAuth()
 @ApiTags('task')
 @Controller('project/:projectId/task')
-@UseGuards(AuthGuard, ProjectAccessGuard)
+@UseGuards(AuthGuard)
 export class TaskController {
     constructor(
         private readonly taskService: TaskService
@@ -26,6 +25,7 @@ export class TaskController {
     @ApiResponse({ status: 200, type: TaskOutputData })
     @ApiParam({ name: 'projectId', required: true, description: 'ID проекта' })
     @ApiParam({ name: 'taskId', required: true, description: 'ID задачи' })
+    @Roles(Role.User)
     @Get('/:taskId')
     async getTaskById(
         @GetTask() task: Task // Таск уже подгружен в мидлваре
@@ -36,6 +36,7 @@ export class TaskController {
     @ApiOperation({ summary: 'Создание новой задачи' })
     @ApiResponse({ status: 200, type: TaskOutputData, description: 'Возвращает поля созданной задачи' })
     @ApiParam({ name: 'projectId', required: true, description: 'ID проекта' })
+    @Roles(Role.User)
     @Post()
     async createTask(
         @GetProject() project: Project,
@@ -56,8 +57,8 @@ export class TaskController {
     @ApiResponse({ status: 200, type: TaskOutputData, description: 'Возвращает данные задачи с обновленными полями' })
     @ApiParam({ name: 'projectId', required: true, description: 'ID проекта' })
     @ApiParam({ name: 'taskId', required: true, description: 'ID задачи' })
+    @Roles(Role.TaskCreator, Role.ProjectCreator)
     @Put('/:taskId')
-    @UseGuards(TaskEditAccessGuard)
     async updateTask(
         @GetProject() project: Project,
         @GetTask() task: Task,
@@ -70,8 +71,8 @@ export class TaskController {
     @ApiResponse({ status: 200, type: ResultResponse })
     @ApiParam({ name: 'projectId', required: true, description: 'ID проекта' })
     @ApiParam({ name: 'taskId', required: true, description: 'ID задачи' })
+    @Roles(Role.ProjectCreator, Role.TaskCreator)
     @Delete('/:taskId')
-    @UseGuards(TaskEditAccessGuard)
     async deleteTask(
         @Param('taskId') taskId: number,
     ) {
@@ -84,8 +85,8 @@ export class TaskController {
     @ApiResponse({ status: 200, type: ResultResponse })
     @ApiParam({ name: 'projectId', required: true, description: 'ID проекта' })
     @ApiParam({ name: 'taskId', required: true, description: 'ID задачи' })
+    @Roles(Role.ProjectCreator, Role.TaskCreator)
     @Put('/:taskId/move')
-    @UseGuards(TaskEditAccessGuard)
     async moveTask(
         @GetTask() task: Task,
         @Body() { newPosition, targetListId }: MoveTaskDto

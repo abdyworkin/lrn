@@ -163,7 +163,7 @@ export class TaskService {
 
                         break
                     case FieldType.Enum:
-                        if(typeof fieldUpdate.value !== 'number') throw new BadRequestException(`Field id(${fieldUpdate.id}) must be number`)
+                        if(typeof fieldUpdate.value !== 'number' || fieldUpdate.value < 0 || fieldUpdate.value >= pField.enumOptions.length) throw new BadRequestException(`Field id(${fieldUpdate.id}) - invalid enum value, must be number ( 0 <= N < ${pField.enumOptions.length} ), got: ${typeof fieldUpdate.value}(${fieldUpdate.value})`)
                         if(!tField) tField = new TaskFieldEnum()
 
                         tField.projectTaskFieldId = fieldUpdate.id
