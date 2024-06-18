@@ -27,7 +27,7 @@ export class TaskService {
     async getTask(taskId: number): Promise<Task> {
         const task = await this.taskRepository.findOne({
             where: { id: taskId },
-            relations: [ 'project.users.user', 'stringFields', 'numberFields', 'enumFields', 'author' ]
+            relations: [ 'stringFields', 'numberFields', 'enumFields', 'author' ]
         })
 
         return task || undefined

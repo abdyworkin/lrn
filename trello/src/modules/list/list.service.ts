@@ -1,7 +1,6 @@
 import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
-import { ProjectRoles } from '../../entities/user_to_project.entity';
 import { List } from './list.entity';
 
 @Injectable()
@@ -12,24 +11,16 @@ export class ListService {
         private readonly dataSrouce: DataSource
     ) {}
 
-
-    async getUserProjectRole(userId: number, listId: number): Promise<ProjectRoles | undefined> {
-        const list = await this.listRepository.findOne({ 
-            where: { 
-                id: listId
-            },
-            relations: [ 'project.users.user' ]
-        })
-
-        if(!list) return undefined
-
-        const userRelation = list.project.users.find(e => e.user.id === userId)
-        if(!userRelation) return undefined
-        return userRelation.role
-    }
-
     async getListById(listId: number) {
-        return await this.listRepository.findOne({ where: { id: listId }, relations: [ 'tasks.author', 'project' ] })
+        return await this.listRepository.findOne({ 
+            where: { id: listId }, 
+            relations: [ 
+                'tasks.author', 
+                'tasks.numberFields',
+                'tasks.stringFields',
+                'tasks.enumFields',
+            ] 
+        })
     }
 
     async createList({ title, description, projectId }: {

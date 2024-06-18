@@ -3,22 +3,22 @@ import { IsNumber, IsOptional, IsString } from "class-validator"
 
 
 export class CreateListDto {
-    @ApiProperty({ example: 'Предстоит сделать', description: 'Заголовок списка задач' })
+    @ApiProperty({ example: 'СПИСОК 1', description: 'Заголовок списка задач' })
     @IsString()
     title: string
 
-    @ApiProperty({ example: 'Не стесняемся - берем', description: 'Описание списка задач' })
+    @ApiProperty({ example: 'ОПИСАНИЕ СПИСКА 1', description: 'Описание списка задач' })
     @IsString()
     description: string
 }
 
 export class UpdateListMetaDto {
-    @ApiPropertyOptional({ example: 'Предстоит сделать', description: 'Заголовок списка задач' })
+    @ApiPropertyOptional({ example: 'СПИСОК 1', description: 'Заголовок списка задач' })
     @IsOptional()
     @IsString()
     title?: string
 
-    @ApiPropertyOptional({ example: 'Не стесняемся - берем', description: 'Описание списка задач' })
+    @ApiPropertyOptional({ example: 'ОПИСАНИЕ СПИСКА 1', description: 'Описание списка задач' })
     @IsOptional()
     @IsString()
     description?: string
