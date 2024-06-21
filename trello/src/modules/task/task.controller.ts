@@ -41,16 +41,12 @@ export class TaskController {
     async createTask(
         @GetProject() project: Project,
         @GetUser() user: User,
-        @Body() { title, description, listId, fields }: CreateTaskDto,
+        @Body() body: CreateTaskDto,
     ) {
-        return TaskOutputData.get(await this.taskService.createTask({ 
-            title, 
-            description, 
-            listId, 
-            project,
-            user,
-            fields,
-        }))
+        const result = await this.taskService
+            .runInTransaction(async manager => await this.taskService.createTask(project, body, user, manager))
+
+        return TaskOutputData.get(result)
     }
 
     @ApiOperation({ summary: 'Обновление полей задачи' })
@@ -62,9 +58,10 @@ export class TaskController {
     async updateTask(
         @GetProject() project: Project,
         @GetTask() task: Task,
-        @Body() { title, description, fields }: UpdateTaskDto,
+        @Body() body: UpdateTaskDto,
     ){
-        return TaskOutputData.get(await this.taskService.updateTask({ project, task, fields, title, description }))
+        const result = await this.taskService.runInTransaction(async manager => await this.taskService.updateTask(task.id, body, manager))
+        return TaskOutputData.get(result)
     }
 
     @ApiOperation({ summary: 'Удаление задачи по id' })
@@ -77,7 +74,7 @@ export class TaskController {
         @Param('taskId') taskId: number,
     ) {
         return {
-            result: await this.taskService.deleteTask({ taskId })
+            result: await this.taskService.runInTransaction(async manager => await this.taskService.deleteTask(taskId, manager))
         }
     }
 
@@ -89,14 +86,11 @@ export class TaskController {
     @Put('/:taskId/move')
     async moveTask(
         @GetTask() task: Task,
-        @Body() { newPosition, targetListId }: MoveTaskDto
+        @Body() body: MoveTaskDto
     ) {
         return {
-            result: await this.taskService.moveTask({
-                newPosition,
-                targetListId,
-                task
-            })
+            result: await this.taskService
+                .runInTransaction(async manager => await this.taskService.moveTask(task.id, body, manager))
         }
     }
 }

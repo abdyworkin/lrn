@@ -1,9 +1,9 @@
 import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from 'src/modules/user/user.entity';
-import { DataSource, Repository, SelectQueryBuilder } from 'typeorm';
+import { DataSource, EntityManager, Repository, SelectQueryBuilder } from 'typeorm';
 import { Task } from './task.entity';
-import { FieldDto } from './task.dto';
+import { CreateTaskDto, FieldDto, MoveTaskDto, UpdateTaskDto } from './task.dto';
 import { Project } from '../project/project.entity';
 import { FieldType } from 'src/modules/field/project_field.entity';
 import { TaskFieldString } from 'src/entities/task_field_string.entity';
@@ -24,8 +24,14 @@ export class TaskService {
         private readonly dataSource: DataSource,
     ) {}
 
-    async getTask(taskId: number): Promise<Task> {
-        const task = await this.taskRepository.findOne({
+    async runInTransaction(func: (manager: EntityManager) => Promise<any>) {
+        return await this.dataSource.transaction(async manager => await func(manager))
+    }
+
+    async getTask(taskId: number, manager?: EntityManager): Promise<Task> {
+        const taskRepo = manager?.getRepository(Task) || this.taskRepository
+
+        const task = await taskRepo.findOne({
             where: { id: taskId },
             relations: [ 'stringFields', 'numberFields', 'enumFields', 'author' ]
         })
@@ -33,17 +39,15 @@ export class TaskService {
         return task || undefined
     }
 
-    async createTask({ title, description, listId, project, user, fields }: {
-        title: string,
-        description: string,
-        listId: number,
-        project: Project,
-        user: User,
-        fields?: FieldDto[]
-    }): Promise<Task> {
+    async createTask(project: Project, { title, description, fields, listId }: CreateTaskDto, user: User, manager: EntityManager): Promise<Task> {
+        const taskRepo = manager.getRepository(Task)
+        const taskNumberRepo = manager.getRepository(TaskFieldNumber)
+        const taskStringRepo = manager.getRepository(TaskFieldString) 
+        const taskEnumRepo = manager.getRepository(TaskFieldEnum)
+
         if(!project.lists.find(e => e.id === listId)) throw new NotFoundException(`List id(${listId}) not exists`)
 
-        const maxPosition = await this.taskRepository
+        const maxPosition = await taskRepo
             .createQueryBuilder('task')
             .select('MAX(task.position)', 'max')
             .where('task.listId = :id', { id: listId })
@@ -103,12 +107,12 @@ export class TaskService {
                 }
             })
 
-            if(stringFields.length > 0) await this.taskFieldStringRepository.save(stringFields)
-            if(numberFields.length > 0) await this.taskFieldNumberRepository.save(numberFields)
-            if(enumFields.length > 0) await this.taskFieldEnumRepository.save(enumFields)
+            if(stringFields.length > 0) await taskStringRepo.save(stringFields)
+            if(numberFields.length > 0) await taskNumberRepo.save(numberFields)
+            if(enumFields.length > 0) await taskEnumRepo.save(enumFields)
 
 
-            await this.taskRepository.save(task)
+            await taskRepo.save(task)
 
             task.stringFields = stringFields
             task.numberFields = numberFields
@@ -118,13 +122,16 @@ export class TaskService {
         return task
     }
 
-    async updateTask({ project, task, title, description, fields }: {
-        project: Project,
-        task: Task
-        title?: string,
-        description?: string,
-        fields?: FieldDto[],
-    }): Promise<Task> {
+    //TODO: придумать решение через join
+    async updateTask(taskId: number, { title, description, fields }: UpdateTaskDto, manager: EntityManager): Promise<Task> {
+        const taskRepo = manager.getRepository(Task)
+        const taskNumberRepo = manager.getRepository(TaskFieldNumber)
+        const taskStringRepo = manager.getRepository(TaskFieldString)
+        const taskEnumRepo = manager.getRepository(TaskFieldEnum)
+
+        const task = await taskRepo.findOne({ where: { id: taskId }, relations: [ 'project.fields' ] })
+        const project  = task.project
+
         task.title = title || task.title,
         task.description = description || task.description
 
@@ -177,104 +184,92 @@ export class TaskService {
             })
         }
 
-        await this.taskFieldStringRepository.save(edittedStringFields)
-        await this.taskFieldNumberRepository.save(edittedNumberFields)
-        await this.taskFieldEnumRepository.save(edittedEnumFields)
-        await this.taskRepository.save(task)
+        await taskStringRepo.save(edittedStringFields)
+        await taskNumberRepo.save(edittedNumberFields)
+        await taskEnumRepo.save(edittedEnumFields)
+        await taskRepo.save(task)
 
-        return await this.getTask(task.id)
+        return await this.getTask(task.id, manager)
     }
 
-    async deleteTask({ taskId }: {
-        taskId: number
-    }) {
-        const result = await this.dataSource.transaction(async manager => {
-            const queryBuilder = manager.createQueryBuilder()
-            const deleteResult = await queryBuilder.delete()
-                .from(Task)
-                .where("id = :taskId", { taskId })
-                .returning('position, listId')
-                .execute()
+    async deleteTask(taskId: number, manager: EntityManager) {
+        const queryBuilder = manager.createQueryBuilder()
+        const deleteResult = await queryBuilder.delete()
+            .from(Task)
+            .where("id = :taskId", { taskId })
+            .returning('position, listId')
+            .execute()
 
-            const { position, listId } = deleteResult.raw[0]
+        const { position, listId } = deleteResult.raw[0]
 
-            return await this.moveTasksUpFrom(position, listId, queryBuilder)
-        })
-
-        return result
+        return await this.moveTasksUpFrom(position, listId, manager)
     }
 
-    async moveTask({ targetListId, newPosition, task }: {
-        targetListId: number,
-        newPosition: number,
-        task: Task
-    }) {
-        targetListId = targetListId || task.listId
+    //TODO: оптимизировать
+    async moveTask(taskId: number, { targetListId, newPosition }: MoveTaskDto, manager: EntityManager) {
+        const task = await this.getTask(taskId, manager)
 
-        const result = await this.dataSource.transaction(async manager => {
-            const queryBuilder = manager.createQueryBuilder()
+        const queryBuilder = manager.createQueryBuilder()
 
-            if(task.listId !== targetListId) {
-                await queryBuilder.update(Task)
-                    .set({
-                        position: -1,
-                        listId: targetListId
-                    })
-                    .where("listId = :listId", { listId: task.listId })
-                    .andWhere("position = :position", { position: task.position })
-                    .execute()
-                
-                await this.moveTasksUpFrom(task.position, task.listId, queryBuilder)
-                await this.moveTasksDownFrom(newPosition, targetListId, queryBuilder)
-
-                return await queryBuilder.update(Task)
-                    .set({
-                        position: newPosition,
-                    })
-                    .where("listId = :targetListId", { targetListId })
-                    .andWhere("position = -1")
-                    .execute()
-            }
-
+        if(task.listId !== targetListId) {
             await queryBuilder.update(Task)
-                .set({ position: -1 })
-                .where("position = :from", { from: task.position })
-                .andWhere("listId = :listId", { listId: task.listId })
+                .set({
+                    position: -1,
+                    listId: targetListId
+                })
+                .where("listId = :listId", { listId: task.listId })
+                .andWhere("position = :position", { position: task.position })
                 .execute()
+            
+            await this.moveTasksUpFrom(task.position, task.listId, manager)
+            await this.moveTasksDownFrom(newPosition, targetListId, manager)
 
-            if (task.position < newPosition) {
-                //Двигаем вниз
-                await queryBuilder
-                    .update(Task)
-                    .set({ position: () => "position - 1" })
-                    .where("position > :from", { from: task.position })
-                    .andWhere("position <= :to", { to: newPosition })
-                    .andWhere("listId = :listId", { listId: task.listId })
-                    .execute();
-            } else {
-                //Двигаем вверх
-                await queryBuilder
-                    .update(Task)
-                    .set({ position: () => "position + 1" })
-                    .where("position < :from", { from: task.position })
-                    .andWhere("position >= :to", { to: newPosition })
-                    .andWhere("listId = :listId", { listId: task.listId })
-                    .execute();
-            }
+            return await queryBuilder.update(Task)
+                .set({
+                    position: newPosition,
+                })
+                .where("listId = :targetListId", { targetListId })
+                .andWhere("position = -1")
+                .execute()
+        }
 
-            return await queryBuilder
+        await queryBuilder.update(Task)
+            .set({ position: -1 })
+            .where("position = :from", { from: task.position })
+            .andWhere("listId = :listId", { listId: task.listId })
+            .execute()
+
+        if (task.position < newPosition) {
+            //Двигаем вниз
+            await queryBuilder
                 .update(Task)
-                .set({ position: newPosition })
-                .where("position = -1")
+                .set({ position: () => "position - 1" })
+                .where("position > :from", { from: task.position })
+                .andWhere("position <= :to", { to: newPosition })
                 .andWhere("listId = :listId", { listId: task.listId })
                 .execute();
-        })
+        } else {
+            //Двигаем вверх
+            await queryBuilder
+                .update(Task)
+                .set({ position: () => "position + 1" })
+                .where("position < :from", { from: task.position })
+                .andWhere("position >= :to", { to: newPosition })
+                .andWhere("listId = :listId", { listId: task.listId })
+                .execute();
+        }
 
-        return result.affected > 0
+        return await queryBuilder
+            .update(Task)
+            .set({ position: newPosition })
+            .where("position = -1")
+            .andWhere("listId = :listId", { listId: task.listId })
+            .execute();
     }
 
-    async moveTasksUpFrom(position: number, listId: number, qb?: SelectQueryBuilder<any>) {
-        const queryBuilder = qb || this.taskRepository.createQueryBuilder()
+    async moveTasksUpFrom(position: number, listId: number, manager?: EntityManager) {
+        const queryBuilder = manager.createQueryBuilder() || this.taskRepository.createQueryBuilder()
+
         const result = await queryBuilder
             .update(Task)
             .set({
@@ -287,8 +282,9 @@ export class TaskService {
         return result.affected > 0
     }
 
-    async moveTasksDownFrom(position: number, listId: number, qb?: SelectQueryBuilder<any>) {
-        const queryBuilder = qb || this.taskRepository.createQueryBuilder()
+    async moveTasksDownFrom(position: number, listId: number, manager?: EntityManager) {
+        const queryBuilder = manager.createQueryBuilder() || this.taskRepository.createQueryBuilder()
+
         const result = await queryBuilder
             .update(Task)
             .set({
