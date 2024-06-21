@@ -1,7 +1,8 @@
 import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import { List } from './list.entity';
+import { CreateListDto, UpdateListMetaDto } from './list.dto';
 
 @Injectable()
 export class ListService {
@@ -11,8 +12,14 @@ export class ListService {
         private readonly dataSrouce: DataSource
     ) {}
 
-    async getListById(listId: number) {
-        return await this.listRepository.findOne({ 
+    async runInTransaction(func: (manager: EntityManager) => Promise<any>) {
+        return await this.dataSrouce.transaction(async manager => await func(manager))
+    }
+
+    async getListById(listId: number, manager?: EntityManager) {
+        const listRepo = manager?.getRepository(List) || this.listRepository
+
+        return await listRepo.findOne({ 
             where: { id: listId }, 
             relations: [ 
                 'tasks.author', 
@@ -23,34 +30,30 @@ export class ListService {
         })
     }
 
-    async createList({ title, description, projectId }: {
-        title: string, 
-        description: string, 
-        projectId: number,
-    }) {
+    async createList(projectId: number, { title, description }: CreateListDto, manager?: EntityManager) {
+        const listRepo = manager?.getRepository(List) || this.listRepository
+
         const newList = new List()
         newList.title = title
         newList.description = description
 
         newList.projectId = projectId
         
-        const maxPosition = await this.listRepository
+        const maxPosition = await listRepo
             .createQueryBuilder('list')
             .select('MAX(list.position)', 'max')
             .where('list.projectId = :id', { id: projectId })
             .getRawOne();
 
         newList.position = maxPosition.max ? Number(maxPosition.max) + 1 : 1;
-        return await this.listRepository.save(newList)
+        return await listRepo.save(newList)
     }
 
     //TODO: передавать данные через объект
-    async updateListMeta({ listId, title, description }: {
-        listId: number,
-        title?: string,
-        description?: string,
-    }) {
-        const result = await this.listRepository.update({ id: listId }, {
+    async updateListMeta(listId: number, { title, description }: UpdateListMetaDto, manager?: EntityManager) {
+        const listRepo = manager?.getRepository(List) || this.listRepository
+
+        const result = await listRepo.update({ id: listId }, {
             title, description
         })
 
@@ -59,60 +62,53 @@ export class ListService {
         return result.generatedMaps[0]
     }
 
-    async deleteList({ listId }: {
-        listId: number,
-    }) {
-        const result = await this.listRepository.delete(listId)
+    async deleteList(listId: number, manager?: EntityManager) {
+        const listRepo = manager?.getRepository(List) || this.listRepository
+
+        const result = await listRepo.delete(listId)
         return result.affected > 0
     }
 
-    async moveList({ listId, to }: { 
-        listId: number,
-        to: number, 
-    }) {
-        const result = await this.dataSrouce.transaction(async manager => {
-            const queryBuilder = manager.createQueryBuilder();
+    async moveList(listId: number, to: number, manager: EntityManager) {
+        const queryBuilder = manager.createQueryBuilder()
 
-            const list = await this.getListById(listId)
-            
-            if(!list) throw new NotFoundException()
+        const list = await this.getListById(listId)
+        
+        if(!list) throw new NotFoundException()
 
-            await queryBuilder.update(List)
-                .set({ position: -1 })
-                .where("position=:from", { from: list.position })
-                .andWhere("projectId = :projectId", { projectId: list.projectId })
-                .execute()
+        await queryBuilder.update(List)
+            .set({ position: -1 })
+            .where("position=:from", { from: list.position })
+            .andWhere("projectId = :projectId", { projectId: list.projectId })
+            .execute()
 
-            if (list.position < to) {
-                //Двигаем вниз
-                await queryBuilder
-                    .update(List)
-                    .set({ position: () => "position - 1" })
-                    .where("position > :from", { from: list.position })
-                    .andWhere("position <= :to", { to })
-                    .andWhere("projectId = :projectId", { projectId: list.projectId })
-                    .execute();
-            } else {
-                //Двигаем вверх
-                await queryBuilder
-                    .update(List)
-                    .set({ position: () => "position + 1" })
-                    .where("position < :from", { from: list.position})
-                    .andWhere("position >= :to", { to })
-                    .andWhere("projectId = :projectId", { projectId: list.projectId })
-                    .execute();
-            }
-
-
-            return await queryBuilder
+        if (list.position < to) {
+            //Двигаем вниз
+            await queryBuilder
                 .update(List)
-                .set({ position: to })
-                .where("position = -1")
+                .set({ position: () => "position - 1" })
+                .where("position > :from", { from: list.position })
+                .andWhere("position <= :to", { to })
                 .andWhere("projectId = :projectId", { projectId: list.projectId })
                 .execute();
-        });
+        } else {
+            //Двигаем вверх
+            await queryBuilder
+                .update(List)
+                .set({ position: () => "position + 1" })
+                .where("position < :from", { from: list.position})
+                .andWhere("position >= :to", { to })
+                .andWhere("projectId = :projectId", { projectId: list.projectId })
+                .execute();
+        }
 
-        return result.affected > 0
+
+        return await queryBuilder
+            .update(List)
+            .set({ position: to })
+            .where("position = -1")
+            .andWhere("projectId = :projectId", { projectId: list.projectId })
+            .execute();
     }
 
 }

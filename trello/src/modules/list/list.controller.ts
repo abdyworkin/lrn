@@ -39,13 +39,9 @@ export class ListController {
     @Post()
     async createList(
         @GetProject() project: Project,
-        @Body() { title, description }: CreateListDto
+        @Body() body: CreateListDto
     ) {
-        const list = await this.listService.createList({
-            title,
-            description,
-            projectId: project.id
-        })
+        const list = await this.listService.runInTransaction(async manager => await this.listService.createList(project.id, body, manager))
         return ListOutputData.get(list)
     }
 
@@ -56,13 +52,9 @@ export class ListController {
     @Put('/:listId')
     async updateListMeta(
         @Param('listId', ParseIntPipe) listId: number,
-        @Body() { title, description }: UpdateListMetaDto
+        @Body() body: UpdateListMetaDto
     ) {
-        const list = await this.listService.updateListMeta({
-            listId, 
-            title, 
-            description
-        })
+        const list = await this.listService.updateListMeta(listId, body)
         return list
     }
 
@@ -74,8 +66,7 @@ export class ListController {
     async deleteList(
         @Param('listId', ParseIntPipe) listId: number
     ) {
-        const result = await this.listService.deleteList({ listId })
-
+        const result = await this.listService.deleteList(listId)
         return { result }
     }
 
@@ -90,10 +81,7 @@ export class ListController {
         @Body() { to }: MoveListDto
     ) {
         return {
-            result: await this.listService.moveList({
-                listId, 
-                to
-            })
+            result: await this.listService.runInTransaction(async manager => await this.listService.moveList(listId, to, manager))
         }
     }
 }
