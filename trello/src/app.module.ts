@@ -11,12 +11,13 @@ import { List } from './modules/list/list.entity';
 import { Project } from './modules/project/project.entity';
 import { Task } from './modules/task/task.entity';
 import { UserToProject } from './entities/user_to_project.entity';
-import { ProjectTaskFieldEnumOptions, ProjectTaskFields } from './entities/project_field.entity';
+import { ProjectTaskFieldEnumOptions, ProjectTaskField } from './modules/field/project_field.entity';
 import { TaskFieldEnum } from './entities/task_field_enum.entity';
 import { TaskFieldString } from './entities/task_field_string.entity';
 import { TaskFieldNumber } from './entities/task_field_number.entity';
 import { ProjectLoadMiddleware } from './modules/project/project.middleware';
 import { TaskLoadMiddleware } from './modules/task/task.middleware';
+import { FieldModule } from './modules/field/field.module';
 
 //TODO: подключать через директорию
 const entities = [
@@ -25,7 +26,7 @@ const entities = [
   Task, 
   UserToProject, 
   List,
-  ProjectTaskFields,
+  ProjectTaskField,
   ProjectTaskFieldEnumOptions,
   TaskFieldEnum,
   TaskFieldString,
@@ -56,6 +57,8 @@ const entities = [
     }),
 
     ListModule,
+
+    FieldModule,
 
   ],
   controllers: [],

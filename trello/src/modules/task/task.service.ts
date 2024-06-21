@@ -5,7 +5,7 @@ import { DataSource, Repository, SelectQueryBuilder } from 'typeorm';
 import { Task } from './task.entity';
 import { FieldDto } from './task.dto';
 import { Project } from '../project/project.entity';
-import { FieldType } from 'src/entities/project_field.entity';
+import { FieldType } from 'src/modules/field/project_field.entity';
 import { TaskFieldString } from 'src/entities/task_field_string.entity';
 import { TaskFieldNumber } from 'src/entities/task_field_number.entity';
 import { TaskFieldEnum } from 'src/entities/task_field_enum.entity';
@@ -61,7 +61,7 @@ export class TaskService {
         task.position = currentPosition
 
         //Идея в том, чтобы потом вызвать минимальное количество .save
-        //TODO: переписать, пусть пробегается по всем полям проекта, и необявленные поля задачи создает со значением null
+        //TODO: не создавать нулевые строки
         if(fields) {
             const stringFields = []
             const numberFields = []
@@ -74,7 +74,7 @@ export class TaskService {
                         if(e !== undefined && typeof e.value !== 'string') throw new BadRequestException(`Field ${field.title} id(${field.id}) must contain string value`)
 
                         const stringField = new TaskFieldString()
-                        stringField.value = (e?.value as string) || null
+                        stringField.value = (e?.value as string) ?? null
                         stringField.task = task
                         stringField.projectTaskFieldId = field.id
                         stringFields.push(stringField)
@@ -83,7 +83,7 @@ export class TaskService {
                     case FieldType.Number:
                         if(e !== undefined && typeof e.value !== 'number') throw new BadRequestException(`Field ${field.title} id(${field.id}) must contain number value`)
                         const numberField = new TaskFieldNumber()
-                        numberField.value = (e?.value as number) || null
+                        numberField.value = (e?.value as number) ?? null
                         numberField.task = task
                         numberField.projectTaskFieldId = field.id
                         numberFields.push(numberField)
@@ -91,7 +91,7 @@ export class TaskService {
 
                     case FieldType.Enum:
                         if(e !== undefined && typeof e.value !== 'number') throw new BadRequestException(`Field ${field.title} id(${field.id}) must contain enum(0 <= N < ${field.enumOptions.length}) value`)
-                        const index = (e?.value as number) || null
+                        const index = (e?.value as number) ?? null
                         if(e !== undefined && (field.enumOptions.length <= index || index < 0)) throw new BadRequestException(`Field ${field.title} id(${field.id}) must contain enum(0 <= N < ${field.enumOptions.length}) value`)
 
                         const enumField = new TaskFieldEnum()

@@ -17,7 +17,7 @@ export class List {
     @Column({ type: 'int', nullable: false })
     position: number
 
-    @ManyToOne(() => Project)
+    @ManyToOne(() => Project, { onDelete: 'CASCADE', cascade: true })
     @JoinTable({ name: 'projectId' })
     project: Project
 

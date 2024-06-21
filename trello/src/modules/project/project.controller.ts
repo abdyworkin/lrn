@@ -2,15 +2,16 @@ import { Body, Controller, Delete, Get, Param, ParseIntPipe, Post, Put, UseGuard
 import { AuthGuard } from "src/modules/auth/auth.guard";
 import { ProjectService } from "./project.service";
 import { GetUser, UserId } from "src/modules/user/user.decorator";
-import { AddFieldDto, CreateProjectDto, KickUserFromProjectDto, UpdateProjectDto } from "./project.dto";
-import { GetProject } from "./project.decorator";
+import { GetProject, GetProjectId } from "./project.decorator";
 import { User } from "src/modules/user/user.entity";
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from "@nestjs/swagger";
 import { ResultResponse } from "../app.response";
 import { ProjectOutputData, Project } from "./project.entity";
-import { ProjectTaskFieldOutputData } from "src/entities/project_field.entity";
+import { ProjectTaskFieldOutputData } from "src/modules/field/project_field.entity";
 import { RoleGuard } from "../role/role.guard";
 import { Role, Roles } from "../role/role.decorator";
+import { AddFieldDto } from "../field/field.dto";
+import { CreateProjectDto, UpdateProjectDto, KickUserFromProjectDto } from "./project.dto";
 
 @ApiBearerAuth()
 @ApiTags('project')
@@ -42,12 +43,14 @@ export class ProjectController {
     //TODO: add single/multiple fields
     @ApiOperation({ summary: 'Создание нового проекта' })
     @ApiResponse({ status: 200, type: ProjectOutputData, description: 'Возвращает поля созданного проекта' })
-    @Post('/create')
+    @Post()
     async createProject(
-        @GetUser() user: User,
-        @Body() { title, description, fields }: CreateProjectDto
+        @UserId() userId: number,
+        @Body() body: CreateProjectDto
     ) {
-        const newProject = await this.projectService.createProject({ user, title, description, fields })
+        
+        const newProject = await this.projectService
+            .runInTransaction(manager => this.projectService.createProject(body, userId, manager))
         return ProjectOutputData.get(newProject)
     }
 
@@ -58,16 +61,13 @@ export class ProjectController {
     @Put(':projectId')
     @Roles(Role.ProjectCreator)
     async updateProject(
-        @GetProject() project: Project,
+        @GetProjectId() projectId: number,
         @Body() body: UpdateProjectDto
     ) {
-        const affected = await this.projectService.updateProject({
-            project, 
-            title: body.title, 
-            description: body.description,
-            fields: body.fields
-        })
-        return affected
+        
+        const project = await this.projectService
+            .runInTransaction(manager => this.projectService.updateProject(projectId, body, manager))
+        return ProjectOutputData.get(project)
     }
 
 
@@ -77,10 +77,10 @@ export class ProjectController {
     @Delete(':projectId')
     @Roles(Role.ProjectCreator)
     async deleteProject(
-        @GetProject() project: Project
+        @GetProjectId() projectId: number
     ) {
         return {
-            result: await this.projectService.deleteProject(project)
+            result: await this.projectService.deleteProject(projectId)
         }
     }
 
@@ -141,23 +141,4 @@ export class ProjectController {
             result: await this.projectService.leaveProject(user, project)
         }
     }
-
-    //Add multiple fields
-    @ApiOperation({ summary: 'Добавление поля для существующего проекта' })
-    @ApiResponse({ status: 200, type: ProjectTaskFieldOutputData })
-    @ApiParam({ name: 'projectId', required: true, description: 'ID проекта' })
-    @Post('/:projectId/addfield')
-    @Roles(Role.ProjectCreator)
-    async addField(
-        @GetProject() project: Project,
-        @Body() body: AddFieldDto
-    ) {
-        return ProjectTaskFieldOutputData
-            .get(await this.projectService.addField(project.id, {
-                type: body.type,
-                title: body.title,
-                options: body.options
-            }))
-    }
-    
 }

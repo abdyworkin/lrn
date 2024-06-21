@@ -9,7 +9,7 @@ export enum FieldType {
 }
 
 @Entity("project_task_fields")
-export class ProjectTaskFields {
+export class ProjectTaskField {
     @PrimaryGeneratedColumn()
     id: number
 
@@ -38,12 +38,12 @@ export class ProjectTaskFieldEnumOptions {
     @PrimaryGeneratedColumn()
     id: number
 
-    @ManyToOne(() => ProjectTaskFields, p => p.enumOptions, {
+    @ManyToOne(() => ProjectTaskField, p => p.enumOptions, {
         cascade: true,
         onDelete: 'CASCADE'
     })
     @JoinTable({ name: 'fieldId' })
-    field: ProjectTaskFields
+    field: ProjectTaskField
 
     @Column()
     fieldId: number
@@ -54,12 +54,12 @@ export class ProjectTaskFieldEnumOptions {
 
 
 export class ProjectTaskFieldOutputData {
-    static get(p: ProjectTaskFields): ProjectTaskFieldOutputData {
+    static get(p: ProjectTaskField): ProjectTaskFieldOutputData {
         const data: ProjectTaskFieldOutputData = {
             id: p.id,
             title: p.title,
             type: p.type,
-            enumOptions: p.enumOptions
+            enumOptions: p.enumOptions || undefined
         }
     
         return data

@@ -3,7 +3,7 @@ import { ApiProperty } from "@nestjs/swagger"
 import { List, ListOutputData } from "../list/list.entity"
 import { Task } from "../task/task.entity"
 import { UserToProject, ProjectUserOutputData } from "../../entities/user_to_project.entity"
-import { ProjectTaskFieldOutputData, ProjectTaskFields } from "src/entities/project_field.entity"
+import { ProjectTaskFieldOutputData, ProjectTaskField } from "src/modules/field/project_field.entity"
 
 @Entity('projects')
 export class Project {
@@ -22,8 +22,8 @@ export class Project {
     @Column({ type: 'bigint', nullable: false })
     inviteExpires: number
 
-    @OneToMany(() => ProjectTaskFields, p => p.project)
-    fields: ProjectTaskFields[]
+    @OneToMany(() => ProjectTaskField, p => p.project)
+    fields: ProjectTaskField[]
 
     // Relations
     @OneToMany(() => List, list => list.project)

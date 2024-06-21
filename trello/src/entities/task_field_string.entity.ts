@@ -1,14 +1,17 @@
 import { Task } from "src/modules/task/task.entity"
 import { Entity, ManyToOne, JoinTable, Column } from "typeorm"
-import { ProjectTaskFields } from "./project_field.entity"
+import { ProjectTaskField } from "../modules/field/project_field.entity"
 
 
 
 @Entity("task_field_string")
 export class TaskFieldString {
-    @ManyToOne(() => ProjectTaskFields)
+    @ManyToOne(() => ProjectTaskField, {
+        cascade: true,
+        onDelete: 'CASCADE'
+    })
     @JoinTable({ name: 'projectTaskFieldId' })
-    projectTaskField: ProjectTaskFields
+    projectTaskField: ProjectTaskField
     
     @Column({ primary: true, type: 'bigint', nullable: false })
     projectTaskFieldId: number

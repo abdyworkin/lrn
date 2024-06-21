@@ -2,13 +2,16 @@ import { BadRequestException, FileTypeValidator, ForbiddenException, Inject, Inj
 import { InjectRepository } from '@nestjs/typeorm';
 import { hashSync } from 'bcryptjs';
 import { User } from 'src/modules/user/user.entity';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import { UserToProject, ProjectRoles } from '../../entities/user_to_project.entity';
 import { Project } from './project.entity';
-import { FieldType, ProjectTaskFieldEnumOptions, ProjectTaskFields } from 'src/entities/project_field.entity';
-import { AddFieldDto, EditFieldDto } from './project.dto';
+import { FieldType, ProjectTaskFieldEnumOptions, ProjectTaskField } from 'src/modules/field/project_field.entity';
+import { AddFieldDto, EditFieldDto } from '../field/field.dto';
+import { FieldService } from '../field/field.service';
+import { CreateProjectDto, UpdateProjectDto } from './project.dto';
 
 
+//TODO: удалить после того как все закончу
 const projectRelations = [
     'tasks.author', 
     'tasks.project.fields',
@@ -27,17 +30,22 @@ const projectRelations = [
 @Injectable()
 export class ProjectService {
     constructor(
+        @Inject()
+        private readonly fieldService: FieldService,
         @InjectRepository(Project)
         private readonly projectRepository: Repository<Project>,
         @InjectRepository(UserToProject)
         private readonly userToProjectRepository: Repository<UserToProject>,
-        @InjectRepository(ProjectTaskFields)
-        private readonly projectTaskFieldRepository: Repository<ProjectTaskFields>,
+        @InjectRepository(ProjectTaskField)
+        private readonly projectTaskFieldRepository: Repository<ProjectTaskField>,
         @InjectRepository(ProjectTaskFieldEnumOptions)
         private readonly projectTaskFieldEnumOptionsRepository: Repository<ProjectTaskFieldEnumOptions>,
         private readonly dataSource: DataSource,
     ) {}
 
+    async runInTransaction(func: (manager: EntityManager) => Promise<any>) {
+        return await this.dataSource.transaction(async manager => await func(manager))
+    }
 
     async getAllUserProjects(userId: number) {
         const projectsRelated = await this.userToProjectRepository.find({ 
@@ -45,21 +53,19 @@ export class ProjectService {
             relations: projectRelations.map(e => `project.${e}`)
         })
 
-        const projects = projectsRelated.map(e => e.project).map(this.fillProjectRelation)
+        const projects = projectsRelated.map(e => e.project)
         return projects
     }
 
     async getProject(id: number) {
         const project = await this.projectRepository.findOne({ where: { id }, relations: projectRelations })
-        return this.fillProjectRelation(project)
+        return project
     }
 
-    async createProject({ title, description, user, fields }: {
-        user: User,
-        title: string,
-        description: string,
-        fields?: AddFieldDto[]
-    }) {
+    //TODO: add manager option
+    async createProject({ title, description, fields }: CreateProjectDto, userId: number, manager?: EntityManager): Promise<Project> {
+        const projectRepo = manager?.getRepository(Project) || this.projectRepository
+
         const [inviteCode, inviteExpires] = this.generateInviteCode()
 
         const newProject = new Project()
@@ -68,14 +74,14 @@ export class ProjectService {
         newProject.inviteCode = inviteCode
         newProject.inviteExpires = inviteExpires
 
-        await this.projectRepository.save(newProject)
+        await projectRepo.save(newProject)
 
         if(fields) {
-            newProject.fields = await this.createFields(newProject.id, fields)
+            newProject.fields = await this.fieldService.createFields(newProject.id, fields, manager)
         }
 
         const userToProject = new UserToProject()
-        userToProject.user = user
+        userToProject.userId = userId
         userToProject.projectId = newProject.id
         userToProject.role = ProjectRoles.Creator
         newProject.users = [await this.userToProjectRepository.save(userToProject)]
@@ -83,64 +89,24 @@ export class ProjectService {
         return newProject
     }
 
-    async updateProject({ project, title, description, fields }: {
-        project: Project, 
-        fields?: EditFieldDto[],
-        title?: string, 
-        description?: string
-    }): Promise<Project | undefined> {
+    async updateProject(projectId: number, { title, description, fields }: UpdateProjectDto, manager?: EntityManager): Promise<Project | undefined> {
+        const projectRepo = manager?.getRepository(Project) || this.projectRepository
+        const project = await projectRepo.findOne({ where: { id: projectId } })
+        if(!project) throw new NotFoundException('Project not found')
+
         project.title = title || project.title
         project.description = description || project.description
 
         if(fields) {
-            const updatedFields = await this.updateProjectFields(fields, project)
-            if(!updatedFields) return undefined
+            const updatedFields = await this.fieldService.updateFields(projectId, fields, manager)
             project.fields = updatedFields
         }
 
-        return await this.projectRepository.save(project)
+        return await projectRepo.save(project)
     }
 
-    async updateProjectFields(
-        fields: EditFieldDto[],
-        project: Project
-    ): Promise<ProjectTaskFields[] | undefined> {
-        const edittedFields = []
-        
-        for(let f of fields) {
-            const field = project.fields.find(e => e.id === f.id)
-            if(!field) throw new BadRequestException(`Field id(${f.id}) does not exist`)
-            
-            if(field.type === FieldType.Enum || f.type === FieldType.Enum) {
-                const newOptions = await this.updateEnumFieldOptions(field.id, f.options)
-                if(!newOptions) return undefined
-                field.enumOptions = newOptions
-            }
-
-            field.type = f.type || field.type
-            field.title = f.title || field.title
-
-            edittedFields.push(field)
-        }
-
-        return await this.projectTaskFieldRepository.save(edittedFields)
-    }
-
-    async updateEnumFieldOptions(
-        fieldId: number,
-        options: string[] = [],
-    ): Promise<ProjectTaskFieldEnumOptions[] | undefined> {
-        const deleteResult = await this.projectTaskFieldEnumOptionsRepository.createQueryBuilder()
-            .delete()
-            .from(ProjectTaskFieldEnumOptions)
-            .where('fieldId = :fieldId', { fieldId })
-            .execute()
-
-       return await this.createOptions(fieldId, options)
-    }
-
-    async deleteProject(project: Project) {
-        const {affected} = await this.projectRepository.delete(project.id)
+    async deleteProject(projectId: number) {
+        const {affected} = await this.projectRepository.delete(projectId)
         return affected > 0
     }
 
@@ -201,68 +167,6 @@ export class ProjectService {
         const userToProjectEntity = project.users.filter(e => e.user.id === user.id)[0]
         const result = await this.userToProjectRepository.remove(userToProjectEntity)
         return !!result
-    }
-
-    //TODO: проверить, стоит ли передавать само поле
-    async addField(projectId: number, arg: AddFieldDto): Promise<ProjectTaskFields> {
-        const result = (await this.createFields(projectId, [ arg ]))[0]
-        if(!result) throw new InternalServerErrorException()
-        return result
-    }
-
-    async addManyFields(projectId: number, args: AddFieldDto[]): Promise<ProjectTaskFields[]> {
-        return await this.createFields(projectId, args)
-    }
-
-    private async createFields(projectId: number, fields: AddFieldDto[]): Promise<ProjectTaskFields[]> {
-        const fieldEntities: ProjectTaskFields[] = []
-        for(let fieldData of fields) {
-            const field = new ProjectTaskFields()
-            field.type = fieldData.type
-            field.title = fieldData.title
-            field.projectId = projectId
-
-            fieldEntities.push(field)
-        }
-        const savedEntities = await this.projectTaskFieldRepository.save(fieldEntities)
-
-        //TODO: обрабатывать ошибку иначе
-        if(savedEntities.length !== fieldEntities.length) throw new InternalServerErrorException('saved entities diff')
-
-        for(let i = 0; i < savedEntities.length; i++) {
-            if(fields[i].type === FieldType.Enum) {
-                savedEntities[i].enumOptions = await this.createOptions(savedEntities[i].id, fields[i].options)
-            }
-        }
-
-        return savedEntities
-    }
-
-    // Добавляет отдельные варианты для полей с типом enum в базу
-    private async createOptions(fieldId: number, options: string[]): Promise<ProjectTaskFieldEnumOptions[]> {
-        if(options.length === 0) return []
-
-        const optionEntities = options.map(e => {
-            const fieldOption = new ProjectTaskFieldEnumOptions()
-            fieldOption.fieldId = fieldId
-            fieldOption.option = e
-            return fieldOption
-        })
-        
-        return await this.projectTaskFieldEnumOptionsRepository.save(optionEntities)
-    }
-
-
-    private fillProjectRelation(project: Project) {
-        if(!project) return undefined
-
-        for(let list of project.lists) {
-            list.project = project
-            for(let task of list.tasks) {
-                task.project = project
-            }
-        }
-        return project
     }
 }
 

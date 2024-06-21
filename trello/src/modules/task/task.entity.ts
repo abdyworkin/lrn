@@ -62,8 +62,6 @@ export class TaskOutputData {
     static get(task: Task): TaskOutputData  {
         let fields = [ ...task.stringFields, ...task.numberFields, ...task.enumFields ].map(e => ({ id: e.projectTaskFieldId, value: e.value }))
 
-        //TODO: добавить title в fields ответа
-
         const data: TaskOutputData = {
             id: task.id,
             title: task.title,
