@@ -5,7 +5,7 @@ import { DataSource, EntityManager, Repository, SelectQueryBuilder } from 'typeo
 import { Task } from './task.entity';
 import { CreateTaskDto, FieldDto, MoveTaskDto, UpdateTaskDto } from './task.dto';
 import { Project } from '../project/project.entity';
-import { FieldType } from 'src/modules/field/project_field.entity';
+import { FieldType, ProjectTaskField } from 'src/modules/field/project_field.entity';
 import { TaskFieldString } from 'src/entities/task_field_string.entity';
 import { TaskFieldNumber } from 'src/entities/task_field_number.entity';
 import { TaskFieldEnum } from 'src/entities/task_field_enum.entity';
@@ -28,6 +28,14 @@ export class TaskService {
         return await this.dataSource.transaction(async manager => await func(manager))
     }
 
+    async isTaskAuthor(taskId: number, userId: number, manager?: EntityManager): Promise<boolean> { 
+        const taskRepo = manager?.getRepository(Task) || this.taskRepository
+
+        const task = await taskRepo.findOne({ where: { id: taskId, authorId: userId } })
+        
+        return task !== null
+    }
+
     async getTask(taskId: number, manager?: EntityManager): Promise<Task> {
         const taskRepo = manager?.getRepository(Task) || this.taskRepository
 
@@ -39,13 +47,13 @@ export class TaskService {
         return task || undefined
     }
 
-    async createTask(project: Project, { title, description, fields, listId }: CreateTaskDto, user: User, manager: EntityManager): Promise<Task> {
+
+    async createTask(projectId: number, { title, description, fields, listId }: CreateTaskDto, userId: number, manager: EntityManager): Promise<Task> {
         const taskRepo = manager.getRepository(Task)
+        const projectFieldsRepo = manager.getRepository(ProjectTaskField)
         const taskNumberRepo = manager.getRepository(TaskFieldNumber)
         const taskStringRepo = manager.getRepository(TaskFieldString) 
         const taskEnumRepo = manager.getRepository(TaskFieldEnum)
-
-        if(!project.lists.find(e => e.id === listId)) throw new NotFoundException(`List id(${listId}) not exists`)
 
         const maxPosition = await taskRepo
             .createQueryBuilder('task')
@@ -58,46 +66,48 @@ export class TaskService {
         const task = new Task()
         task.title = title
         task.description = description
-        task.author = user
-        task.authorId = user.id
-        task.projectId = project.id
+        task.authorId = userId
+        task.projectId = projectId
         task.listId = listId
         task.position = currentPosition
 
-        //Идея в том, чтобы потом вызвать минимальное количество .save
-        //TODO: не создавать нулевые строки
+        const projectFields = await projectFieldsRepo.find({ where: { projectId: projectId }, relations: [ 'enumOptions' ] })
+
         if(fields) {
             const stringFields = []
             const numberFields = []
             const enumFields = []
 
-            project.fields.forEach(field => {
-                const e = fields.find(f => f.id === field.id)
-                switch(field.type) {
+            for(let field of fields) {
+                const pField = projectFields.find(e => e.id === field.id)
+                if(!pField) throw new BadRequestException(`Field id(${field.id}) does not exist in project id(${projectId})`)
+
+                switch(pField.type) {
                     case FieldType.String:
-                        if(e !== undefined && typeof e.value !== 'string') throw new BadRequestException(`Field ${field.title} id(${field.id}) must contain string value`)
+                        if(typeof field.value !== 'string') throw new BadRequestException(`Field id(${field.id}) must be string, got: ${typeof field.value}(${field.value})`)
 
                         const stringField = new TaskFieldString()
-                        stringField.value = (e?.value as string) ?? null
+                        stringField.value = field.value
                         stringField.task = task
                         stringField.projectTaskFieldId = field.id
                         stringFields.push(stringField)
                         break
-
+    
                     case FieldType.Number:
-                        if(e !== undefined && typeof e.value !== 'number') throw new BadRequestException(`Field ${field.title} id(${field.id}) must contain number value`)
+                        if(typeof field.value !== 'number') throw new BadRequestException(`Field id(${field.id}) must be number, got: ${typeof field.value}(${field.value})`)
+
                         const numberField = new TaskFieldNumber()
-                        numberField.value = (e?.value as number) ?? null
+                        numberField.value = field.value
                         numberField.task = task
                         numberField.projectTaskFieldId = field.id
                         numberFields.push(numberField)
                         break
-
+    
                     case FieldType.Enum:
-                        if(e !== undefined && typeof e.value !== 'number') throw new BadRequestException(`Field ${field.title} id(${field.id}) must contain enum(0 <= N < ${field.enumOptions.length}) value`)
-                        const index = (e?.value as number) ?? null
-                        if(e !== undefined && (field.enumOptions.length <= index || index < 0)) throw new BadRequestException(`Field ${field.title} id(${field.id}) must contain enum(0 <= N < ${field.enumOptions.length}) value`)
-
+                        if(typeof field.value !== 'number') throw new BadRequestException(`Field id(${field.id}) must be number, got: ${typeof field.value}(${field.value})`)
+                        const index = field.value
+                        if(index < 0 || pField.enumOptions.length <= index) throw new BadRequestException(`Field id(${field.id}) must be enum (0 <= N < ${pField.enumOptions.length}), got: ${field.value}`)
+    
                         const enumField = new TaskFieldEnum()
                         enumField.value = index
                         enumField.task = task
@@ -105,12 +115,12 @@ export class TaskService {
                         enumFields.push(enumField)
                         break
                 }
-            })
+            }
+            
 
             if(stringFields.length > 0) await taskStringRepo.save(stringFields)
             if(numberFields.length > 0) await taskNumberRepo.save(numberFields)
             if(enumFields.length > 0) await taskEnumRepo.save(enumFields)
-
 
             await taskRepo.save(task)
 
@@ -119,7 +129,8 @@ export class TaskService {
             task.enumFields = enumFields
         }
 
-        return task
+        const t = await this.getTask(task.id, manager)
+        return t
     }
 
     //TODO: придумать решение через join

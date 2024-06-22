@@ -5,6 +5,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ProjectTaskField, ProjectTaskFieldEnumOptions } from 'src/modules/field/project_field.entity';
 import { UserModule } from '../user/user.module';
 import { ProjectModule } from '../project/project.module';
+import { TaskModule } from '../task/task.module';
 
 @Module({
   controllers: [FieldController],
@@ -13,6 +14,7 @@ import { ProjectModule } from '../project/project.module';
     TypeOrmModule.forFeature([ProjectTaskField, ProjectTaskFieldEnumOptions]),
     UserModule,
     forwardRef(() => ProjectModule),
+    forwardRef(() => TaskModule),
   ],
   exports: [FieldService]
 })

@@ -1,16 +1,13 @@
-import { Body, Controller, Delete, Get, Param, ParseIntPipe, Post, Put, UseGuards, UseInterceptors } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, ParseIntPipe, Post, Put, UseGuards } from "@nestjs/common";
 import { AuthGuard } from "src/modules/auth/auth.guard";
 import { ProjectService } from "./project.service";
-import { GetUser, UserId } from "src/modules/user/user.decorator";
-import { GetProject, GetProjectId } from "./project.decorator";
-import { User } from "src/modules/user/user.entity";
+import { UserId } from "src/modules/user/user.decorator";
+import { GetProjectId } from "./project.decorator";
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from "@nestjs/swagger";
 import { ResultResponse } from "../app.response";
-import { ProjectOutputData, Project } from "./project.entity";
-import { ProjectTaskFieldOutputData } from "src/modules/field/project_field.entity";
+import { ProjectOutputData } from "./project.entity";
 import { RoleGuard } from "../role/role.guard";
 import { Role, Roles } from "../role/role.decorator";
-import { AddFieldDto } from "../field/field.dto";
 import { CreateProjectDto, UpdateProjectDto, KickUserFromProjectDto } from "./project.dto";
 
 @ApiBearerAuth()
@@ -35,9 +32,9 @@ export class ProjectController {
     @Roles(Role.User)
     @Get('/:projectId')
     async getProject(
-        @GetProject() project: Project
+        @GetProjectId() projectId: number
     ) {
-        return ProjectOutputData.get(project)
+        return ProjectOutputData.get(await this.projectService.getProject(projectId))
     }
 
     //TODO: add single/multiple fields
@@ -86,15 +83,14 @@ export class ProjectController {
 
     //TODO: задокументировать response как полагается
     @ApiOperation({ summary: "Создает новый код приглашения в проект" })
-    @ApiResponse({ status: 200,  description: 'Возращает новый код приглашения и время его истечения'})
+    @ApiResponse({ status: 200, description: 'Возращает новый код приглашения и время его истечения'})
     @ApiParam({ name: 'projectId', required: true, description: 'ID проекта' })
     @Get('/:projectId/create/invite')
     @Roles(Role.ProjectCreator)
     async createInviteLink(
-        @GetProject() project: Project
+        @GetProjectId() projectId: number
     ) {
-        const { inviteCode, inviteExpires } = await this.projectService.createInviteCode(project)
-        return { inviteCode, inviteExpires }
+        return await this.projectService.createInviteCode(projectId)
     }
 
     //TODO: без получения доступа
@@ -105,9 +101,9 @@ export class ProjectController {
     async joinProject(
         @Param('projectId', ParseIntPipe) id: number,
         @Param('code') code: string,
-        @GetUser() user: User
+        @UserId() userId: number
     ){
-        const project = await this.projectService.joinByCode(code, id,  user)
+        const project = await this.projectService.joinByCode(code, id,  userId)
         return ProjectOutputData.get(project)
     }
 
@@ -120,11 +116,11 @@ export class ProjectController {
     @Roles(Role.ProjectCreator)
     async kickUser(
         @Param('userId', ParseIntPipe) userId: number,
-        @GetProject() project: Project,
+        @GetProjectId() projectId: number,
         @Body() body: KickUserFromProjectDto,
     ) {
         return {
-            result: await this.projectService.kickUser(userId, project, body.ban)
+            result: await this.projectService.kickUser(userId, projectId, body.ban)
         }
     }
 
@@ -134,11 +130,11 @@ export class ProjectController {
     @Get('/:projectId/leave')
     @Roles(Role.User)
     async leave(
-        @GetProject() project: Project,
-        @GetUser() user: User
+        @GetProjectId() projectId: number,
+        @UserId() userId: number
     ) {
         return {
-            result: await this.projectService.leaveProject(user, project)
+            result: await this.projectService.leaveProject(userId, projectId)
         }
     }
 }

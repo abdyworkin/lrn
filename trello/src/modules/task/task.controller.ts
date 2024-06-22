@@ -1,16 +1,14 @@
-import { Body, Controller, Delete, Get, InternalServerErrorException, Param, ParseIntPipe, Post, Put, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Post, Put, UseGuards } from '@nestjs/common';
 import { TaskService } from './task.service';
 import { AuthGuard } from '../auth/auth.guard';
 import { CreateTaskDto, MoveTaskDto, UpdateTaskDto } from './task.dto';
-import { GetProject } from '../project/project.decorator';
-import { GetUser } from '../user/user.decorator';
-import { User } from 'src/modules/user/user.entity';
-import { GetTask } from './task.decorator';
+import { GetProjectId } from '../project/project.decorator';
+import { UserId } from '../user/user.decorator';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { ResultResponse } from '../app.response';
-import { Project } from '../project/project.entity';
 import { TaskOutputData, Task } from './task.entity';
 import { Role, Roles } from '../role/role.decorator';
+import { GetTaskId } from './task.decorator';
 
 @ApiBearerAuth()
 @ApiTags('task')
@@ -28,9 +26,9 @@ export class TaskController {
     @Roles(Role.User)
     @Get('/:taskId')
     async getTaskById(
-        @GetTask() task: Task // Таск уже подгружен в мидлваре
+        @GetTaskId() taskId: number
     ) {
-        return TaskOutputData.get(task)
+        return TaskOutputData.get(await this.taskService.getTask(taskId))
     }
 
     @ApiOperation({ summary: 'Создание новой задачи' })
@@ -39,12 +37,12 @@ export class TaskController {
     @Roles(Role.User)
     @Post()
     async createTask(
-        @GetProject() project: Project,
-        @GetUser() user: User,
+        @GetProjectId() projectId: number,
+        @UserId() userId: number,
         @Body() body: CreateTaskDto,
     ) {
         const result = await this.taskService
-            .runInTransaction(async manager => await this.taskService.createTask(project, body, user, manager))
+            .runInTransaction(async manager => await this.taskService.createTask(projectId, body, userId, manager))
 
         return TaskOutputData.get(result)
     }
@@ -56,11 +54,11 @@ export class TaskController {
     @Roles(Role.TaskCreator, Role.ProjectCreator)
     @Put('/:taskId')
     async updateTask(
-        @GetProject() project: Project,
-        @GetTask() task: Task,
+        @GetProjectId() projectId: number,
+        @GetTaskId() taskId: number,
         @Body() body: UpdateTaskDto,
     ){
-        const result = await this.taskService.runInTransaction(async manager => await this.taskService.updateTask(task.id, body, manager))
+        const result = await this.taskService.runInTransaction(async manager => await this.taskService.updateTask(taskId, body, manager))
         return TaskOutputData.get(result)
     }
 
@@ -71,7 +69,7 @@ export class TaskController {
     @Roles(Role.ProjectCreator, Role.TaskCreator)
     @Delete('/:taskId')
     async deleteTask(
-        @Param('taskId') taskId: number,
+        @GetTaskId() taskId: number,
     ) {
         return {
             result: await this.taskService.runInTransaction(async manager => await this.taskService.deleteTask(taskId, manager))
@@ -85,12 +83,12 @@ export class TaskController {
     @Roles(Role.ProjectCreator, Role.TaskCreator)
     @Put('/:taskId/move')
     async moveTask(
-        @GetTask() task: Task,
+        @GetTaskId() taskId: number,
         @Body() body: MoveTaskDto
     ) {
         return {
             result: await this.taskService
-                .runInTransaction(async manager => await this.taskService.moveTask(task.id, body, manager))
+                .runInTransaction(async manager => await this.taskService.moveTask(taskId, body, manager))
         }
     }
 }

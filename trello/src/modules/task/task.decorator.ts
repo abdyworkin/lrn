@@ -1,4 +1,3 @@
-import { createParamDecorator } from "@nestjs/common";
-import { ExecutionContextHost } from "@nestjs/core/helpers/execution-context-host";
+import { Param, ParseIntPipe, createParamDecorator } from "@nestjs/common";
 
-export const GetTask = createParamDecorator((data, req: ExecutionContextHost) => { return req.switchToHttp().getRequest().task }) 
+export const GetTaskId = () => Param('taskId', ParseIntPipe)

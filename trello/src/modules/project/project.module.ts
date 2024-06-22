@@ -8,6 +8,7 @@ import { UserToProject } from '../../entities/user_to_project.entity';
 import { Project } from './project.entity';
 import { ProjectTaskFieldEnumOptions, ProjectTaskField } from 'src/modules/field/project_field.entity';
 import { FieldModule } from '../field/field.module';
+import { TaskModule } from '../task/task.module';
 
 @Module({
   controllers: [ProjectController],
@@ -16,6 +17,7 @@ import { FieldModule } from '../field/field.module';
     TypeOrmModule.forFeature([Project, UserToProject, ProjectTaskField, ProjectTaskFieldEnumOptions]),
     UserModule,
     forwardRef(() => ListModule),
+    forwardRef(() => TaskModule),
     forwardRef(() => FieldModule)
   ],
   exports: [ ProjectService ]

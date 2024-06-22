@@ -5,6 +5,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { UserModule } from '../user/user.module';
 import { ProjectModule } from '../project/project.module';
 import { List } from './list.entity';
+import { TaskModule } from '../task/task.module';
 
 @Module({
   providers: [ListService],
@@ -12,6 +13,7 @@ import { List } from './list.entity';
   imports: [
     TypeOrmModule.forFeature([List]),
     UserModule,
+    forwardRef(() => TaskModule),
     forwardRef(() => ProjectModule)
   ],
   exports: [ ListService ]

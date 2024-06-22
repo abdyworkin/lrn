@@ -4,12 +4,10 @@ import { AuthGuard } from '../auth/auth.guard';
 import { CreateListDto, MoveListDto, UpdateListMetaDto } from './list.dto';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags, ApiUnprocessableEntityResponse } from '@nestjs/swagger';
 import { ResultResponse } from '../app.response';
-import { GetProject } from '../project/project.decorator';
-import { Project } from '../project/project.entity';
+import { GetProjectId } from '../project/project.decorator';
 import { ListOutputData } from './list.entity';
 import { RoleGuard } from '../role/role.guard';
 import { Role, Roles } from '../role/role.decorator';
-
 
 @ApiBearerAuth()
 @ApiTags('list')
@@ -38,10 +36,10 @@ export class ListController {
     @Roles(Role.ProjectCreator)
     @Post()
     async createList(
-        @GetProject() project: Project,
+        @GetProjectId() projectId: number,
         @Body() body: CreateListDto
     ) {
-        const list = await this.listService.runInTransaction(async manager => await this.listService.createList(project.id, body, manager))
+        const list = await this.listService.runInTransaction(async manager => await this.listService.createList(projectId, body, manager))
         return ListOutputData.get(list)
     }
 

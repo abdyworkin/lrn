@@ -15,8 +15,6 @@ import { ProjectTaskFieldEnumOptions, ProjectTaskField } from './modules/field/p
 import { TaskFieldEnum } from './entities/task_field_enum.entity';
 import { TaskFieldString } from './entities/task_field_string.entity';
 import { TaskFieldNumber } from './entities/task_field_number.entity';
-import { ProjectLoadMiddleware } from './modules/project/project.middleware';
-import { TaskLoadMiddleware } from './modules/task/task.middleware';
 import { FieldModule } from './modules/field/field.module';
 
 //TODO: подключать через директорию
@@ -65,14 +63,5 @@ const entities = [
   providers: [],
 })
 export class AppModule implements NestModule {
-  configure(consumer: MiddlewareConsumer) {
-    consumer
-      .apply(ProjectLoadMiddleware)
-      .exclude('project/create', 'project/all')
-      .forRoutes({ path: 'project/:projectId*', method: RequestMethod.ALL })
-
-    consumer
-      .apply(TaskLoadMiddleware)
-      .forRoutes({ path: '*/task/:taskId*', method: RequestMethod.ALL })
-  }
+  configure(consumer: MiddlewareConsumer) {}
 }
