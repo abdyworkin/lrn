@@ -23,7 +23,7 @@ export class AuthService {
     }
 
     async register(username: string, password: string) {
-        const user = await this.userService.createUser(username, password) //TODO: пароль хранить захешированным в отдельной таблице
+        const user = await this.userService.createUser(username, password) 
         const payload = { username: user.username, id: user.id }
 
         return {

@@ -49,7 +49,6 @@ export class ListService {
         return await listRepo.save(newList)
     }
 
-    //TODO: передавать данные через объект
     async updateListMeta(listId: number, { title, description }: UpdateListMetaDto, manager?: EntityManager) {
         const listRepo = manager?.getRepository(List) || this.listRepository
 

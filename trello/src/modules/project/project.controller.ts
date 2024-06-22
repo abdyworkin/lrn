@@ -37,7 +37,6 @@ export class ProjectController {
         return ProjectOutputData.get(await this.projectService.getProject(projectId))
     }
 
-    //TODO: add single/multiple fields
     @ApiOperation({ summary: 'Создание нового проекта' })
     @ApiResponse({ status: 200, type: ProjectOutputData, description: 'Возвращает поля созданного проекта' })
     @Post()
@@ -51,7 +50,6 @@ export class ProjectController {
         return ProjectOutputData.get(newProject)
     }
 
-    //TODO: может обновить любые данные, исправить
     @ApiOperation({ summary: 'Обновление метаданных проекта' })
     @ApiResponse({ status: 200, type: ProjectOutputData, description: 'Возвращает проект с обвноленными полями' })
     @ApiParam({ name: 'projectId', required: true, description: 'ID проекта' })
@@ -81,7 +79,6 @@ export class ProjectController {
         }
     }
 
-    //TODO: задокументировать response как полагается
     @ApiOperation({ summary: "Создает новый код приглашения в проект" })
     @ApiResponse({ status: 200, description: 'Возращает новый код приглашения и время его истечения'})
     @ApiParam({ name: 'projectId', required: true, description: 'ID проекта' })
@@ -108,7 +105,6 @@ export class ProjectController {
     }
 
 
-    //TODO: поменять все методы на get или post
     @ApiOperation({ summary: 'Исключение пользователя из проекта по id' })
     @ApiResponse({ status: 200, type: ResultResponse })
     @ApiParam({ name: 'projectId', required: true, description: 'ID проекта' })

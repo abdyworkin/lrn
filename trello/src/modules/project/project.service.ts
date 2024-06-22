@@ -9,7 +9,6 @@ import { FieldService } from '../field/field.service';
 import { CreateProjectDto, UpdateProjectDto } from './project.dto';
 
 
-//TODO: удалить после того как все закончу
 const projectRelations = [
     'users.user',
     'fields.enumOptions',
@@ -53,7 +52,7 @@ export class ProjectService {
 
         const projectsRelated = await pUserRepo.find({ 
             where: { userId }, 
-            relations: projectRelations.map(e => `project.${e}`) //TODO: требуется оптимизация, в отношении не должны догружаться таски
+            relations: projectRelations.map(e => `project.${e}`)
         })
 
         const projects = projectsRelated.map(e => e.project)
@@ -66,7 +65,6 @@ export class ProjectService {
         return project
     }
 
-    //TODO: add manager option
     async createProject({ title, description, fields }: CreateProjectDto, userId: number, manager?: EntityManager): Promise<Project> {
         const projectRepo = manager?.getRepository(Project) || this.projectRepository
         const userToProjectRepo = manager?.getRepository(UserToProject) || this.userToProjectRepository
@@ -116,14 +114,14 @@ export class ProjectService {
         return affected > 0
     }
 
-    async createInviteCode(projectId: number, manager?: EntityManager): Promise<[string, number]> {
+    async createInviteCode(projectId: number, manager?: EntityManager) {
         const projectRepo = manager?.getRepository(Project) || this.projectRepository
 
         const [inviteCode, expires] = this.generateInviteCode()
         
         const result = await projectRepo.update({ id: projectId }, { inviteCode, inviteExpires: expires })
 
-        return result.affected > 0 && [ inviteCode, expires ]
+        return result.affected > 0 && { inviteCode, expires }
     }
 
     private generateInviteCode(): [string, number] {
@@ -142,7 +140,6 @@ export class ProjectService {
         if(code !== project.inviteCode) throw new ForbiddenException()
         if(Date.now() > project.inviteExpires) throw new ForbiddenException()
         
-        //TODO: возможно не стоит передавать весь объект, проверить
         const userToProject = new UserToProject()
         userToProject.userId = userId
         userToProject.projectId = project.id
@@ -180,7 +177,6 @@ export class ProjectService {
         }
 
         //TODO: давать роль модератора, либо пользователю, которого назначил бывший модератор, либо следующему по списку
-        //TODO: сделать нормальный вывод
         const userToProjectEntity = projectUsers.filter(e => e.user.id === userId)[0]
         const result = await userToProjectRepo.remove(userToProjectEntity)
         return !!result

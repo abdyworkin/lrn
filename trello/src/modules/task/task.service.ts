@@ -133,7 +133,6 @@ export class TaskService {
         return t
     }
 
-    //TODO: придумать решение через join
     async updateTask(taskId: number, { title, description, fields }: UpdateTaskDto, manager: EntityManager): Promise<Task> {
         const taskRepo = manager.getRepository(Task)
         const taskNumberRepo = manager.getRepository(TaskFieldNumber)
@@ -216,7 +215,6 @@ export class TaskService {
         return await this.moveTasksUpFrom(position, listId, manager)
     }
 
-    //TODO: оптимизировать
     async moveTask(taskId: number, { targetListId, newPosition }: MoveTaskDto, manager: EntityManager) {
         const task = await this.getTask(taskId, manager)
 

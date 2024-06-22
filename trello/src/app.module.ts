@@ -17,7 +17,6 @@ import { TaskFieldString } from './entities/task_field_string.entity';
 import { TaskFieldNumber } from './entities/task_field_number.entity';
 import { FieldModule } from './modules/field/field.module';
 
-//TODO: подключать через директорию
 const entities = [
   User, 
   Project, 

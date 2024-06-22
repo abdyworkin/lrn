@@ -12,7 +12,6 @@ export class AuthGuard implements CanActivate {
         private userSerivce: UserService,
     ) {}
 
-    //TODO: убарть запрос к базе данных, достаточно просто сохранять id и username авторизованного пользователя
     async canActivate(context: ExecutionContext): Promise<boolean> {
         const req = context.switchToHttp().getRequest()
         const token = this.getTokenFromHeader(req)
