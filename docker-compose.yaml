@@ -1,0 +1,36 @@
+version: '3.8'
+
+services:
+  pgdatabase:
+      image: postgres:13
+      environment:
+          - POSTGRES_USER=root
+          - POSTGRES_PASSWORD=root
+          - POSTGRES_DB=trello
+      volumes:
+          - "./postgres_data:/var/lib/postgresql/data:rw"
+      ports:
+          - "5432:5432"
+  pgadmin:
+      image: dpage/pgadmin4
+      environment:
+          - PGADMIN_DEFAULT_EMAIL=abdyworkin@gmail.com
+          - PGADMIN_DEFAULT_PASSWORD=adminpassword
+      ports:
+          - "8080:80"
+
+  core:
+    build:
+      context: ./trello/
+      dockerfile: ./Dockerfile
+    ports:
+      - 3000:3000
+    depends_on:
+      - pgdatabase
+    environment:
+      - POSTGRES_HOST=pgdatabase
+      - POSTGRES_DB=trello
+      - POSTGRES_USER=root
+      - POSTGRES_PASSWORD=root
+      - SERVER_PORT=3000
+      - JWT_SECRET=SOMELONGJWTSECRET

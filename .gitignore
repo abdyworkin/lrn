@@ -5,5 +5,4 @@ dist
 crud/todos.db
 crud/.env
 
-# Nest application
-nest-practice
+postgres_data

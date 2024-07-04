@@ -1,13 +1,11 @@
-import { BadRequestException, FileTypeValidator, ForbiddenException, Inject, Injectable, InternalServerErrorException, NotFoundException, forwardRef } from '@nestjs/common';
+import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { hashSync } from 'bcryptjs';
 import { DataSource, EntityManager, Repository } from 'typeorm';
 import { UserToProject, ProjectRoles } from '../../entities/user_to_project.entity';
 import { Project } from './project.entity';
-import { FieldType, ProjectTaskFieldEnumOptions, ProjectTaskField } from 'src/modules/field/project_field.entity';
 import { FieldService } from '../field/field.service';
 import { CreateProjectDto, UpdateProjectDto } from './project.dto';
-
 
 const projectRelations = [
     'users.user',
@@ -28,10 +26,6 @@ export class ProjectService {
         private readonly projectRepository: Repository<Project>,
         @InjectRepository(UserToProject)
         private readonly userToProjectRepository: Repository<UserToProject>,
-        @InjectRepository(ProjectTaskField)
-        private readonly projectTaskFieldRepository: Repository<ProjectTaskField>,
-        @InjectRepository(ProjectTaskFieldEnumOptions)
-        private readonly projectTaskFieldEnumOptionsRepository: Repository<ProjectTaskFieldEnumOptions>,
         private readonly dataSource: DataSource,
     ) {}
 

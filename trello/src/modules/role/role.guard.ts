@@ -1,4 +1,4 @@
-import { BadRequestException, CanActivate, ExecutionContext, ForbiddenException, Inject, Injectable } from "@nestjs/common";
+import { CanActivate, ExecutionContext, ForbiddenException, Inject, Injectable } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { ROLES_KEY, Role } from "./role.decorator";
 import { ProjectRoles } from "src/entities/user_to_project.entity";
