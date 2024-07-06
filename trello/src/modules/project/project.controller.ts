@@ -1,13 +1,12 @@
 import { Body, Controller, Delete, Get, Param, ParseIntPipe, Post, Put, UseGuards } from "@nestjs/common";
 import { AuthGuard } from "src/modules/auth/auth.guard";
 import { ProjectService } from "./project.service";
-import { UserId } from "src/modules/user/user.decorator";
 import { GetProjectId } from "./project.decorator";
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from "@nestjs/swagger";
 import { ResultResponse } from "../app.response";
 import { ProjectOutputData } from "./project.entity";
 import { RoleGuard } from "../role/role.guard";
-import { Role, Roles } from "../role/role.decorator";
+import { GetUserId, Role, Roles } from "../role/role.decorator";
 import { CreateProjectDto, UpdateProjectDto, KickUserFromProjectDto } from "./project.dto";
 
 @ApiBearerAuth()
@@ -22,7 +21,7 @@ export class ProjectController {
     @ApiOperation({ summary: 'Получение всех проектов пользователя' })
     @ApiResponse({ status: 200, type: [ProjectOutputData] })
     @Get('/all')
-    async getUserAllProjects(@UserId() userId: number) {
+    async getUserAllProjects(@GetUserId() userId: number) {
         return (await this.projectService.getAllUserProjects(userId)).map(ProjectOutputData.get)
     }
 
@@ -41,7 +40,7 @@ export class ProjectController {
     @ApiResponse({ status: 200, type: ProjectOutputData, description: 'Возвращает поля созданного проекта' })
     @Post()
     async createProject(
-        @UserId() userId: number,
+        @GetUserId() userId: number,
         @Body() body: CreateProjectDto
     ) {
         
@@ -98,7 +97,7 @@ export class ProjectController {
     async joinProject(
         @Param('projectId', ParseIntPipe) id: number,
         @Param('code') code: string,
-        @UserId() userId: number
+        @GetUserId() userId: number
     ){
         const project = await this.projectService.joinByCode(code, id,  userId)
         return ProjectOutputData.get(project)
@@ -127,7 +126,7 @@ export class ProjectController {
     @Roles(Role.User)
     async leave(
         @GetProjectId() projectId: number,
-        @UserId() userId: number
+        @GetUserId() userId: number
     ) {
         return {
             result: await this.projectService.leaveProject(userId, projectId)

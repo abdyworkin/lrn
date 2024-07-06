@@ -1,22 +1,26 @@
-import { Module, forwardRef } from '@nestjs/common';
-import { JwtModule } from '@nestjs/jwt';
+import { Module } from '@nestjs/common';
+import { ClientsModule, Transport } from '@nestjs/microservices';
 import { AuthService } from './auth.service';
-import { AuthController } from './auth.controller';
-import { UserModule } from 'src/modules/user/user.module';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { User } from 'src/modules/user/user.entity';
 
 @Module({
-    imports: [
-        UserModule,
-        JwtModule.register({
-            global: true,
-            secret: process.env.JWT_SECRET || 'SECRET',
-            signOptions: { expiresIn: process.env.JWT_EXPIRES_IN || '1d' }
-        }),
-        TypeOrmModule.forFeature([User]),
-    ],
-    providers: [AuthService],
-    controllers: [AuthController],
+  imports: [
+    ClientsModule.register([
+      {
+        name: 'AUTH_SERVICE',
+        transport: Transport.RMQ,
+        options: {
+          urls: [process.env.RABBITMQ_URL],
+          queue: 'auth_queue',
+          queueOptions: {
+            durable: false,
+          }
+        }
+      }
+    ]),
+  ],
+  providers: [AuthService],
+  exports: [
+    AuthService
+  ]
 })
 export class AuthModule {}

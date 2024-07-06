@@ -6,3 +6,4 @@ crud/todos.db
 crud/.env
 
 postgres_data
+auth_data

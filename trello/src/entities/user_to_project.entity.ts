@@ -1,7 +1,7 @@
 import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
-import { User, UserOutputData } from "../modules/user/user.entity";
 import { ApiOperation, ApiProperty } from "@nestjs/swagger";
 import { Project } from "../modules/project/project.entity";
+import { User } from "src/modules/auth/auth.dto";
 
 // Для простоты
 export enum ProjectRoles {
@@ -28,23 +28,18 @@ export class UserToProject {
     @Column()
     projectId: number
 
-    @ManyToOne(() => User, user => user.projects, {
-        onDelete: 'CASCADE',
-        cascade: true
-    })
-    @JoinColumn({ name: 'userId' })
-    user: User
-
     @Column()
     userId: number
+
+    user: User
 }
 
 export class ProjectUserOutputData {
     static get(p: UserToProject): ProjectUserOutputData {
         const data: ProjectUserOutputData = {
-            id: p.user.id,
-            username: p.user.username,
-            role: p.role
+            id: p.userId,
+            username: p.user ? p.user.username : undefined,
+            role: p.role,
         }
 
         return data
@@ -58,4 +53,21 @@ export class ProjectUserOutputData {
 
     @ApiProperty({ example: 'creator', description: 'Роль пользователя в проекте' })
     role: string
+}
+
+export class UserOutputData {
+    static get(p: User): UserOutputData {
+        const data: UserOutputData = {
+            id: p.id,
+            username: p.username,
+        }
+
+        return data
+    }
+
+    @ApiProperty({ example: '1', description: 'Уникальный идентификатор' })
+    id: number
+
+    @ApiProperty({ example: 'ivan1234', description: 'Уникальное имя пользователя' })
+    username: string
 }

@@ -1,24 +1,39 @@
 version: '3.8'
 
 services:
-  pgdatabase:
-      image: postgres:13
-      environment:
-          - POSTGRES_USER=root
-          - POSTGRES_PASSWORD=root
-          - POSTGRES_DB=trello
-      volumes:
-          - "./postgres_data:/var/lib/postgresql/data:rw"
-      ports:
-          - "5432:5432"
-  pgadmin:
-      image: dpage/pgadmin4
-      environment:
-          - PGADMIN_DEFAULT_EMAIL=abdyworkin@gmail.com
-          - PGADMIN_DEFAULT_PASSWORD=adminpassword
-      ports:
-          - "8080:80"
+  pgcore:
+    image: postgres:13
+    environment:
+        - POSTGRES_USER=root
+        - POSTGRES_PASSWORD=root
+        - POSTGRES_DB=trello
+    volumes:
+        - "./postgres_data:/var/lib/postgresql/data:rw"
+    ports:
+        - "5432:5432"
 
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U root -d trello"]
+      interval: 15s
+      timeout: 5s
+      retries: 15
+
+  pgauth:
+    image: postgres:13
+    environment:
+        - POSTGRES_USER=root
+        - POSTGRES_PASSWORD=root
+        - POSTGRES_DB=auth
+    volumes:
+        - "./auth_data:/var/lib/postgresql/data:rw"
+    ports:
+        - "5433:5432"
+    healthcheck:
+        test: ["CMD-SHELL", "pg_isready -U root -d auth"]
+        interval: 15s
+        timeout: 5s
+        retries: 15
+  
   core:
     build:
       context: ./trello/
@@ -26,11 +41,52 @@ services:
     ports:
       - 3000:3000
     depends_on:
-      - pgdatabase
-    environment:
-      - POSTGRES_HOST=pgdatabase
+      pgcore:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment: #Заменить на URL
+      - POSTGRES_HOST=pgcore
       - POSTGRES_DB=trello
       - POSTGRES_USER=root
       - POSTGRES_PASSWORD=root
       - SERVER_PORT=3000
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+
+  auth:
+    build:
+      context: ./auth/
+      dockerfile: ./Dockerfile
+    ports:
+      - 3010:3010
+    depends_on:
+      pgauth:
+        condition: service_healthy
+      rabbitmq: 
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgres://root:root@pgauth:5432/auth
+      - SERVER_PORT=3010
       - JWT_SECRET=SOMELONGJWTSECRET
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmqctl status"]
+      interval: 15s
+      timeout: 5s
+      retries: 30
+
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+
+  # pgadmin:
+  #   image: dpage/pgadmin4
+  #   environment:
+  #       - PGADMIN_DEFAULT_EMAIL=abdyworkin@gmail.com
+  #       - PGADMIN_DEFAULT_PASSWORD=adminpassword
+  #   ports:
+  #       - "8080:80"

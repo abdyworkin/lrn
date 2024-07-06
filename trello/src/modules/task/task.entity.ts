@@ -1,11 +1,12 @@
 import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinTable, UsingJoinTableIsNotAllowedError, OneToMany } from "typeorm"
-import { User, UserOutputData } from "../user/user.entity"
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger"
 import { List } from "../list/list.entity"
 import { Project } from "../project/project.entity"
 import { TaskFieldNumber } from "src/entities/task_field_number.entity"
 import { TaskFieldString } from "src/entities/task_field_string.entity"
 import { TaskFieldEnum } from "src/entities/task_field_enum.entity"
+import { User } from "../auth/auth.dto"
+import { UserOutputData } from "src/entities/user_to_project.entity"
 
 @Entity('tasks')
 export class Task {
@@ -21,12 +22,10 @@ export class Task {
     @Column({ type: 'int', nullable: false })
     position: number
 
-    @ManyToOne(() => User)
-    @JoinTable({ name: 'authorId' })
-    author: User
-
-    @Column()
+    @Column({ type: 'int', nullable: false })
     authorId: number
+
+    author: User
 
     @OneToMany(() => TaskFieldNumber, t => t.task)
     numberFields: TaskFieldNumber[]
@@ -47,7 +46,10 @@ export class Task {
     @Column()
     listId: number
 
-    @ManyToOne(() => Project)
+    @ManyToOne(() => Project, {
+        cascade: true,
+        onDelete: 'CASCADE'
+    })
     @JoinTable({ name: 'projectId' })
     project: Project
 
@@ -60,14 +62,15 @@ export class Task {
 
 export class TaskOutputData {
     static get(task: Task): TaskOutputData  {
-        let fields = [ ...task.stringFields, ...task.numberFields, ...task.enumFields ].map(e => ({ id: e.projectTaskFieldId, value: e.value }))
+        let fields = [ ...(task?.stringFields || []), ...(task?.numberFields || []), ...(task?.enumFields || []) ].map(e => ({ id: e.projectTaskFieldId, value: e.value }))
 
         const data: TaskOutputData = {
             id: task.id,
             title: task.title,
             description: task.description,
             position: task.position,
-            author: UserOutputData.get(task.author),
+            authorId: task.authorId,
+            author: task.author,
             fields: fields.sort((a, b) => a.id - b.id),
             listId: task.listId,
             createdAt: task.createdAt
@@ -90,6 +93,10 @@ export class TaskOutputData {
 
     @ApiProperty({ type: () => UserOutputData, description: 'Объект пользователя автора задачи' })
     author: UserOutputData
+
+    // TODO: догружать данные пользователя по id
+    @ApiProperty({ example: '1', description: 'Уникальный идентификатор автора задачи' })
+    authorId: number
 
     @ApiProperty({ type: () => [FieldValueOutputData], description: 'Значения полей задачи' })
     fields: FieldValueOutputData[]

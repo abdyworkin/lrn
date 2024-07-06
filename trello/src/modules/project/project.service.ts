@@ -2,15 +2,16 @@ import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nest
 import { InjectRepository } from '@nestjs/typeorm';
 import { hashSync } from 'bcryptjs';
 import { DataSource, EntityManager, Repository } from 'typeorm';
-import { UserToProject, ProjectRoles } from '../../entities/user_to_project.entity';
+import { UserToProject, ProjectRoles, ProjectUserOutputData } from '../../entities/user_to_project.entity';
 import { Project } from './project.entity';
 import { FieldService } from '../field/field.service';
 import { CreateProjectDto, UpdateProjectDto } from './project.dto';
+import { AuthService } from '../auth/auth.service';
+import { User } from '../auth/auth.dto';
 
 const projectRelations = [
-    'users.user',
+    'users',
     'fields.enumOptions',
-    'lists.tasks.author', 
     'lists.tasks.project.fields',
     'lists.tasks.stringFields',
     'lists.tasks.numberFields',
@@ -22,6 +23,8 @@ export class ProjectService {
     constructor(
         @Inject()
         private readonly fieldService: FieldService,
+        @Inject()
+        private readonly authService: AuthService,
         @InjectRepository(Project)
         private readonly projectRepository: Repository<Project>,
         @InjectRepository(UserToProject)
@@ -49,14 +52,18 @@ export class ProjectService {
             relations: projectRelations.map(e => `project.${e}`)
         })
 
-        const projects = projectsRelated.map(e => e.project)
+        const projects = []
+        for (let p of projectsRelated) {
+            projects.push(await this.populateUsers(p.project))
+        }
+
         return projects
     }
 
     async getProject(id: number, manager?: EntityManager) {
         const projectRepo = manager?.getRepository(Project) || this.projectRepository
         const project = await projectRepo.findOne({ where: { id }, relations: projectRelations })
-        return project
+        return await this.populateUsers(project)
     }
 
     async createProject({ title, description, fields }: CreateProjectDto, userId: number, manager?: EntityManager): Promise<Project> {
@@ -99,7 +106,7 @@ export class ProjectService {
             project.fields = updatedFields
         }
 
-        return await projectRepo.save(project)
+        return this.populateUsers(await projectRepo.save(project))
     }
 
     async deleteProject(projectId: number, manager?: EntityManager) {
@@ -126,7 +133,7 @@ export class ProjectService {
         const projectRepo = manager?.getRepository(Project) || this.projectRepository
         const userToProjectRepo = manager?.getRepository(UserToProject) || this.userToProjectRepository
 
-        const project = await projectRepo.findOne({ where: { id: projectId }, relations: [ 'users.user' ] })
+        const project = await projectRepo.findOne({ where: { id: projectId }, relations: [ 'users' ] })
 
         if(!project) throw new NotFoundException('project/not-found')
         if(project.users.findIndex(e => e.userId === userId) !== -1) return project
@@ -142,7 +149,7 @@ export class ProjectService {
 
         project.users = [...project.users, userToProject]
 
-        return await projectRepo.save(project)
+        return await this.populateUsers(await projectRepo.save(project))
     }
 
     async kickUser(userId: number, projectId: number, ban: boolean, manager?: EntityManager) {
@@ -162,18 +169,42 @@ export class ProjectService {
         const projectRepo = manager?.getRepository(Project) || this.projectRepository
         const userToProjectRepo = manager?.getRepository(UserToProject) || this.userToProjectRepository
 
-        const projectUsers = await userToProjectRepo.find({ where: { projectId }, relations: [ 'user' ] })
+        const projectUsers = await userToProjectRepo.find({ where: { projectId } })
 
         //Крайний случай: последний пользователь выходит из проекта, проект удаляется
-        if (projectUsers.length === 1 && projectUsers[0].user.id === userId) {
+        if (projectUsers.length === 1 && projectUsers[0].userId === userId) {
             const result = await projectRepo.delete(projectId)
             return !!result
         }
 
         //TODO: давать роль модератора, либо пользователю, которого назначил бывший модератор, либо следующему по списку
-        const userToProjectEntity = projectUsers.filter(e => e.user.id === userId)[0]
+        const userToProjectEntity = projectUsers.filter(e => e.userId === userId)[0]
         const result = await userToProjectRepo.remove(userToProjectEntity)
         return !!result
+    }
+
+    private async populateUsers(project: Project): Promise<Project> {
+        let usersToLoad = project.users.map(e => e.userId)
+
+        const users = await this.authService.getUsersByIds(usersToLoad)
+        const userMap: { [id: number]: User } = {}
+        users.forEach(e => userMap[e.id] = e)
+
+        console.log('users', usersToLoad, 'got from auth service', users)
+
+        project.users.forEach(e => {
+            let foundUser = userMap[e.userId]
+            console.log('populating', e, foundUser)
+
+            if(foundUser) {
+                e.user = {
+                    id: foundUser.id,
+                    username: foundUser.username
+                }
+            }
+        })
+        
+        return project
     }
 }
 

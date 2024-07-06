@@ -2,19 +2,19 @@ import { MiddlewareConsumer, Module, NestModule, forwardRef } from '@nestjs/comm
 import { ListService } from './list.service';
 import { ListController } from './list.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { UserModule } from '../user/user.module';
 import { ProjectModule } from '../project/project.module';
 import { List } from './list.entity';
 import { TaskModule } from '../task/task.module';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   providers: [ListService],
   controllers: [ListController],
   imports: [
     TypeOrmModule.forFeature([List]),
-    UserModule,
     forwardRef(() => TaskModule),
-    forwardRef(() => ProjectModule)
+    forwardRef(() => ProjectModule),
+    AuthModule,
   ],
   exports: [ ListService ]
 })

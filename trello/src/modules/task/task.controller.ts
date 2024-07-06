@@ -3,11 +3,10 @@ import { TaskService } from './task.service';
 import { AuthGuard } from '../auth/auth.guard';
 import { CreateTaskDto, MoveTaskDto, UpdateTaskDto } from './task.dto';
 import { GetProjectId } from '../project/project.decorator';
-import { UserId } from '../user/user.decorator';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { ResultResponse } from '../app.response';
 import { TaskOutputData, Task } from './task.entity';
-import { Role, Roles } from '../role/role.decorator';
+import { GetUserId, Role, Roles } from '../role/role.decorator';
 import { GetTaskId } from './task.decorator';
 
 @ApiBearerAuth()
@@ -38,7 +37,7 @@ export class TaskController {
     @Post()
     async createTask(
         @GetProjectId() projectId: number,
-        @UserId() userId: number,
+        @GetUserId() userId: number,
         @Body() body: CreateTaskDto,
     ) {
         const result = await this.taskService

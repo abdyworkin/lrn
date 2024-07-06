@@ -3,10 +3,13 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, Repository } from 'typeorm';
 import { List } from './list.entity';
 import { CreateListDto, UpdateListMetaDto } from './list.dto';
+import { AuthService } from '../auth/auth.service';
+import { User } from '../auth/auth.dto';
 
 @Injectable()
 export class ListService {
     constructor(
+        private readonly authService: AuthService,
         @InjectRepository(List)
         private readonly listRepository: Repository<List>,
         private readonly dataSrouce: DataSource
@@ -19,15 +22,15 @@ export class ListService {
     async getListById(listId: number, manager?: EntityManager) {
         const listRepo = manager?.getRepository(List) || this.listRepository
 
-        return await listRepo.findOne({ 
+        return await this.populateUsers(await listRepo.findOne({ 
             where: { id: listId }, 
             relations: [ 
-                'tasks.author', 
+                'tasks', 
                 'tasks.numberFields',
                 'tasks.stringFields',
                 'tasks.enumFields',
             ] 
-        })
+        }))
     }
 
     async createList(projectId: number, { title, description }: CreateListDto, manager?: EntityManager) {
@@ -46,7 +49,7 @@ export class ListService {
             .getRawOne();
 
         newList.position = maxPosition.max ? Number(maxPosition.max) + 1 : 1;
-        return await listRepo.save(newList)
+        return await this.populateUsers(await listRepo.save(newList))
     }
 
     async updateListMeta(listId: number, { title, description }: UpdateListMetaDto, manager?: EntityManager) {
@@ -108,6 +111,27 @@ export class ListService {
             .where("position = -1")
             .andWhere("projectId = :projectId", { projectId: list.projectId })
             .execute();
+    }
+
+    private async populateUsers(list: List): Promise<List> {
+        const usersToLoad = list.tasks?.map(e => e.authorId) || []
+
+        if(usersToLoad.length === 0) return list
+
+        const users = await this.authService.getUsersByIds(usersToLoad)
+        const userMap: {[id: number]: User} = {}
+        users.forEach(e => userMap[e.id] = e)
+
+        list.tasks.forEach(t => {
+            const found = userMap[t.authorId]
+
+            t.author = {
+                id: found.id,
+                username: found.username
+            }
+        })
+        
+        return list
     }
 
 }

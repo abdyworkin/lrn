@@ -1,18 +1,18 @@
-import { BadRequestException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { User } from 'src/modules/user/user.entity';
-import { DataSource, EntityManager, Repository, SelectQueryBuilder } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import { Task } from './task.entity';
-import { CreateTaskDto, FieldDto, MoveTaskDto, UpdateTaskDto } from './task.dto';
-import { Project } from '../project/project.entity';
+import { CreateTaskDto, MoveTaskDto, UpdateTaskDto } from './task.dto';
 import { FieldType, ProjectTaskField } from 'src/modules/field/project_field.entity';
 import { TaskFieldString } from 'src/entities/task_field_string.entity';
 import { TaskFieldNumber } from 'src/entities/task_field_number.entity';
 import { TaskFieldEnum } from 'src/entities/task_field_enum.entity';
+import { AuthService } from '../auth/auth.service';
 
 @Injectable()
 export class TaskService {  
     constructor(
+        private readonly authService: AuthService,
         @InjectRepository(Task)
         private readonly taskRepository: Repository<Task>,
         @InjectRepository(TaskFieldString)
@@ -41,10 +41,12 @@ export class TaskService {
 
         const task = await taskRepo.findOne({
             where: { id: taskId },
-            relations: [ 'stringFields', 'numberFields', 'enumFields', 'author' ]
+            relations: [ 'stringFields', 'numberFields', 'enumFields' ]
         })
 
-        return task || undefined
+        if(!task) return undefined
+
+        return await this.populateAuthor(task)
     }
 
 
@@ -122,15 +124,13 @@ export class TaskService {
             if(numberFields.length > 0) await taskNumberRepo.save(numberFields)
             if(enumFields.length > 0) await taskEnumRepo.save(enumFields)
 
-            await taskRepo.save(task)
 
             task.stringFields = stringFields
             task.numberFields = numberFields
             task.enumFields = enumFields
         }
 
-        const t = await this.getTask(task.id, manager)
-        return t
+        return await this.populateAuthor(await taskRepo.save(task))
     }
 
     async updateTask(taskId: number, { title, description, fields }: UpdateTaskDto, manager: EntityManager): Promise<Task> {
@@ -303,6 +303,16 @@ export class TaskService {
             .andWhere("listId = :listId", { listId })
             .execute()
         return result.affected > 0
+    }
+
+    private async populateAuthor(task: Task): Promise<Task> {
+        const author = (await this.authService.getUsersByIds([ task.authorId ]))[0]
+
+        if(!author) return task
+
+        task.author = author
+
+        return task
     }
 
 }

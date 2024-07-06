@@ -1,0 +1,153 @@
+basePath: /
+definitions:
+  endpoints.GetUsersByIdRequest:
+    properties:
+      ids:
+        items:
+          type: integer
+        type: array
+    type: object
+  endpoints.GetUsersByIdResponse:
+    properties:
+      users:
+        items:
+          $ref: '#/definitions/endpoints.ResponseUser'
+        type: array
+    type: object
+  endpoints.ResponseUser:
+    properties:
+      id:
+        type: integer
+      username:
+        type: string
+    type: object
+  endpoints.SignInRequest:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    type: object
+  endpoints.SignInResponse:
+    properties:
+      token:
+        type: string
+    type: object
+  endpoints.SignUpRequest:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    type: object
+  endpoints.SignUpResponse:
+    properties:
+      token:
+        type: string
+    type: object
+  endpoints.ValidateTokenRequest:
+    properties:
+      token:
+        type: string
+    type: object
+  endpoints.ValidateTokenResponse:
+    properties:
+      id:
+        type: integer
+    type: object
+host: localhost:3010
+info:
+  contact: {}
+  description: Сервис отвечает за аутентификацию, авторизацию и хранение данных пользователей
+  title: Auth service API
+  version: 0.0.1
+paths:
+  /getusers:
+    post:
+      consumes:
+      - application/json
+      description: Получение пользователей по их ID
+      parameters:
+      - description: Get Users By Id Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/endpoints.GetUsersByIdRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/endpoints.GetUsersByIdResponse'
+      summary: Получение пользователей
+      tags:
+      - auth
+  /signin:
+    post:
+      consumes:
+      - application/json
+      description: Аутентификация пользователя и возврат JWT токена
+      parameters:
+      - description: Sign In Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/endpoints.SignInRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/endpoints.SignInResponse'
+      summary: Аутентификация
+      tags:
+      - auth
+  /signup:
+    post:
+      consumes:
+      - application/json
+      description: Создает нового пользователя и возвращает авторизационный токен
+      parameters:
+      - description: Sign Up Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/endpoints.SignUpRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/endpoints.SignUpResponse'
+      summary: Регистрация
+      tags:
+      - auth
+  /validate:
+    post:
+      consumes:
+      - application/json
+      description: Проверка валидности JWT токена
+      parameters:
+      - description: Validate Token Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/endpoints.ValidateTokenRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/endpoints.ValidateTokenResponse'
+      summary: Авторизация
+      tags:
+      - auth
+swagger: "2.0"

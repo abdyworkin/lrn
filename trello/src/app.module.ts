@@ -1,11 +1,8 @@
 import { MiddlewareConsumer, Module, NestModule, RequestMethod } from '@nestjs/common';
-import { AuthModule } from './modules/auth/auth.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { UserModule } from './modules/user/user.module';
 import { ProjectModule } from './modules/project/project.module';
 import { TaskModule } from './modules/task/task.module';
 import { ConfigModule } from '@nestjs/config';
-import { User } from './modules/user/user.entity';
 import { ListModule } from './modules/list/list.module';
 import { List } from './modules/list/list.entity';
 import { Project } from './modules/project/project.entity';
@@ -16,9 +13,10 @@ import { TaskFieldEnum } from './entities/task_field_enum.entity';
 import { TaskFieldString } from './entities/task_field_string.entity';
 import { TaskFieldNumber } from './entities/task_field_number.entity';
 import { FieldModule } from './modules/field/field.module';
+import { ClientsModule, Transport } from '@nestjs/microservices';
+import { AuthModule } from './modules/auth/auth.module';
 
 const entities = [
-  User, 
   Project, 
   Task, 
   UserToProject, 
@@ -33,10 +31,10 @@ const entities = [
 @Module({
   imports: [
     AuthModule,
-    UserModule,
     ProjectModule,
     TaskModule,
     ListModule,
+    FieldModule,
 
     ConfigModule.forRoot({
       envFilePath: `.${process.env.NODE_ENV}.env`
@@ -50,12 +48,9 @@ const entities = [
       password: process.env.POSTGRES_PASSWORD || 'root',
       database: process.env.POSTGRES_DB || 'trello',
       entities: entities,
-      synchronize: true
+      synchronize: true,
     }),
 
-    ListModule,
-
-    FieldModule,
 
   ],
   controllers: [],
