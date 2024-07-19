@@ -10,7 +10,7 @@ type ITodoService interface {
 	GetTodos(ids []model.ID) ([]model.Todo, error)
 	CreateTodo(title string) (*model.Todo, error)
 	ToggleTodo(id model.ID) (*model.Todo, error)
-	UpdateTodo(id model.ID, title string, complete bool) (*model.Todo, error)
+	UpdateTodo(id model.ID, title *string, complete *bool) (*model.Todo, error)
 	DeleteTodo(id model.ID) (*model.Todo, error)
 }
 
@@ -55,7 +55,7 @@ func (t *TodoService) ToggleTodo(id model.ID) (*model.Todo, error) {
 }
 
 // UpdateTodo implements ITodoService.
-func (t *TodoService) UpdateTodo(id model.ID, title string, complete bool) (*model.Todo, error) {
+func (t *TodoService) UpdateTodo(id model.ID, title *string, complete *bool) (*model.Todo, error) {
 	todo, err := t.store.Todos.UpdateTodo(id, title, complete)
 	return &todo, err
 }

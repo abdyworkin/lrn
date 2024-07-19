@@ -21,8 +21,9 @@ func init() {
 	flag.StringVar(&configPath, "config-path", "configs/apiserver.toml", "path to config file")
 }
 
-//TODO: add validation
-//TODO: add tests
+//TODO: завернуть в Docker
+//TODO: README.md
+//TODO: попарвить README репозитория
 
 func main() {
 	flag.Parse()
@@ -33,6 +34,8 @@ func main() {
 		slog.Error(err.Error())
 		return
 	}
+
+	overrideEnv(appConfig)
 
 	logLevel := new(slog.LevelVar)
 
@@ -51,10 +54,12 @@ func main() {
 		Level: logLevel,
 	}))
 
+	logger.Info("Logger configured")
+
 	store := store.New(appConfig.Store)
 
 	if err := store.Open(); err != nil {
-		logger.Error(err.Error())
+		logger.Error("Error opening database connection", err.Error())
 		return
 	}
 
@@ -72,5 +77,14 @@ func main() {
 		errChan <- fmt.Errorf("%s", <-c)
 	}()
 
-	logger.Warn("Server closed:", (<-errChan).Error())
+	logger.Warn("Server closed", "error", (<-errChan).Error())
+}
+
+func overrideEnv(config *AppConfig) {
+	if dbUrl := os.Getenv("DATABASE_URL"); dbUrl != "" {
+		config.Store.DatabaseUrl = dbUrl
+	}
+	if logLevel := os.Getenv("LOG_LEVEL"); logLevel != "" {
+		config.LogLevel = logLevel
+	}
 }

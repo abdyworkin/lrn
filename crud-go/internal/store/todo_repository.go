@@ -10,7 +10,7 @@ type ITodoRepository interface {
 	GetTodos(ids []model.ID) ([]model.Todo, error)
 	CreateTodo(title string) (model.Todo, error)
 	ToggleTodo(id model.ID) (model.Todo, error)
-	UpdateTodo(id model.ID, title string, complete bool) (model.Todo, error)
+	UpdateTodo(id model.ID, title *string, complete *bool) (model.Todo, error)
 	DeleteTodo(id model.ID) (model.Todo, error)
 }
 
@@ -86,11 +86,14 @@ func (r *TodoRepository) ToggleTodo(id model.ID) (model.Todo, error) {
 	return todo, nil
 }
 
-func (r *TodoRepository) UpdateTodo(id model.ID, title string, complete bool) (model.Todo, error) {
+func (r *TodoRepository) UpdateTodo(id model.ID, title *string, complete *bool) (model.Todo, error) {
 	var todo model.Todo = model.Todo{}
 
 	if err := r.store.db.QueryRow(
-		"UPDATE todos SET title=$2, complete=$3 WHERE id=$1 RETURNING id, title, complete, created_at",
+		`UPDATE todos 
+			SET title=COALESCE($2, title), 
+				complete=COALESCE($3, complete) 
+			WHERE id=$1 RETURNING id, title, complete, created_at`,
 		id,
 		title,
 		complete,
