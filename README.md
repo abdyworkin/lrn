@@ -3,6 +3,7 @@
 1. Запустите все сервисы с помощью Docker Compose:
 
     ```bash
+    cd microservices
     docker-compose up
     ```
 

@@ -8,7 +8,7 @@ services:
         - POSTGRES_PASSWORD=root
         - POSTGRES_DB=trello
     volumes:
-        - "./postgres_data:/var/lib/postgresql/data:rw"
+        - "./dbdata/trllodb:/var/lib/postgresql/data:rw"
     ports:
         - "5432:5432"
 
@@ -25,7 +25,7 @@ services:
         - POSTGRES_PASSWORD=root
         - POSTGRES_DB=auth
     volumes:
-        - "./auth_data:/var/lib/postgresql/data:rw"
+        - "./dbdata/authdb:/var/lib/postgresql/data:rw"
     ports:
         - "5433:5432"
     healthcheck:

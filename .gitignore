@@ -5,5 +5,5 @@ dist
 crud/todos.db
 crud/.env
 
-postgres_data
-auth_data
+microservices/dbdata/postgres_data
+microservices/dbdata/auth_data
