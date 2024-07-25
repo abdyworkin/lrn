@@ -1,45 +1,20 @@
 package store
 
 import (
-	"database/sql"
-
-	_ "github.com/lib/pq"
+	"crud/internal/model"
 )
 
-type Store struct {
-	config *Config
-	db     *sql.DB
+type Store interface {
+	Open() error
+	Close() error
 
-	Todos ITodoRepository
+	Todos() TodoRepository
 }
 
-func New(config *Config) *Store { // ?
-	store := &Store{
-		config: config,
-	}
-
-	todoRepo := newTodoRepository(store)
-
-	store.Todos = todoRepo
-
-	return store
-}
-
-func (s *Store) Open() error {
-	db, err := sql.Open("postgres", s.config.DatabaseUrl)
-	if err != nil {
-		return err
-	}
-
-	if err := db.Ping(); err != nil {
-		return err
-	}
-
-	s.db = db
-
-	return nil
-}
-
-func (s *Store) Close() {
-	s.db.Close()
+type TodoRepository interface {
+	GetTodos(ids []model.ID) ([]model.Todo, error)
+	CreateTodo(title string) (model.Todo, error)
+	ToggleTodo(id model.ID) (model.Todo, error)
+	UpdateTodo(id model.ID, title *string, complete *bool) (model.Todo, error)
+	DeleteTodo(id model.ID) (model.Todo, error)
 }

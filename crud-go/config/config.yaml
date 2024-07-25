@@ -1,0 +1,6 @@
+http:
+    bindaddress: ""
+loglevel: debug
+service: {}
+store:
+    databaseurl: ""

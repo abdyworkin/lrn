@@ -1,10 +1,9 @@
-FROM golang:1.22.2
+FROM golang:1.22.2 AS builder
 
 WORKDIR /app
 
 COPY go.mod go.sum ./
 RUN go mod download
-
 
 RUN apt-get update && apt-get install -y make
 
@@ -14,8 +13,14 @@ COPY . .
 
 RUN make build
 
+RUN echo '#!/bin/sh\n make migration_up\n  exec ./main' > ./build/ep.sh && chmod +x ./build/ep.sh
+
+# Step 2: build smaller image
+
+FROM scratch
+
+COPY --from=builder /app/build /
+
 EXPOSE 3000
 
-RUN echo '#!/bin/sh\n make migration_up\n  exec ./main' > ./ep.sh && chmod +x ./ep.sh
-
-CMD ["./ep.sh"]
+CMD [ "sh", "./ep.sh" ]

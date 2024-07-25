@@ -2,31 +2,70 @@ package store
 
 import (
 	"crud/internal/model"
+	"database/sql"
 	"fmt"
 	"strings"
+
+	_ "github.com/lib/pq"
 )
 
-type ITodoRepository interface {
-	GetTodos(ids []model.ID) ([]model.Todo, error)
-	CreateTodo(title string) (model.Todo, error)
-	ToggleTodo(id model.ID) (model.Todo, error)
-	UpdateTodo(id model.ID, title *string, complete *bool) (model.Todo, error)
-	DeleteTodo(id model.ID) (model.Todo, error)
+var _ Store = &PostgresStore{}
+
+type PostgresStore struct {
+	config *Config
+	db     *sql.DB
+
+	todos TodoRepository
 }
 
-var _ ITodoRepository = &TodoRepository{}
+func NewPostgresStore(config *Config) Store { // ?
+	store := &PostgresStore{
+		config: config,
+	}
 
-type TodoRepository struct {
-	store *Store
+	todoRepo := newPostgresTodoRepository(store)
+
+	store.todos = todoRepo
+
+	return store
 }
 
-func newTodoRepository(store *Store) ITodoRepository {
-	return &TodoRepository{
+func (s *PostgresStore) Todos() TodoRepository {
+	return s.Todos()
+}
+
+func (s *PostgresStore) Open() error {
+	db, err := sql.Open("postgres", s.config.DatabaseUrl)
+	if err != nil {
+		return err
+	}
+
+	if err := db.Ping(); err != nil {
+		return err
+	}
+
+	s.db = db
+
+	return nil
+}
+
+func (s *PostgresStore) Close() error {
+	return s.db.Close()
+}
+
+var _ TodoRepository = &PostgresTodoRepository{}
+
+type PostgresTodoRepository struct {
+	store *PostgresStore
+}
+
+func newPostgresTodoRepository(store *PostgresStore) TodoRepository {
+	return &PostgresTodoRepository{
 		store: store,
 	}
 }
 
-func (r *TodoRepository) GetTodos(ids []model.ID) ([]model.Todo, error) {
+func (r *PostgresTodoRepository) GetTodos(ids []model.ID) ([]model.Todo, error) {
 	ret := make([]model.Todo, 0, len(ids))
 
 	idStrings := make([]string, len(ids))
@@ -56,7 +95,7 @@ func (r *TodoRepository) GetTodos(ids []model.ID) ([]model.Todo, error) {
 	return ret, nil
 }
 
-func (r *TodoRepository) CreateTodo(title string) (model.Todo, error) {
+func (r *PostgresTodoRepository) CreateTodo(title string) (model.Todo, error) {
 	var todo model.Todo = model.Todo{
 		Title:    title,
 		Complete: false,
@@ -73,7 +112,7 @@ func (r *TodoRepository) CreateTodo(title string) (model.Todo, error) {
 	return todo, nil
 }
 
-func (r *TodoRepository) ToggleTodo(id model.ID) (model.Todo, error) {
+func (r *PostgresTodoRepository) ToggleTodo(id model.ID) (model.Todo, error) {
 	var todo model.Todo = model.Todo{}
 
 	if err := r.store.db.QueryRow(
@@ -86,7 +125,7 @@ func (r *TodoRepository) ToggleTodo(id model.ID) (model.Todo, error) {
 	return todo, nil
 }
 
-func (r *TodoRepository) UpdateTodo(id model.ID, title *string, complete *bool) (model.Todo, error) {
+func (r *PostgresTodoRepository) UpdateTodo(id model.ID, title *string, complete *bool) (model.Todo, error) {
 	var todo model.Todo = model.Todo{}
 
 	if err := r.store.db.QueryRow(
@@ -104,7 +143,7 @@ func (r *TodoRepository) UpdateTodo(id model.ID, title *string, complete *bool) 
 	return todo, nil
 }
 
-func (r *TodoRepository) DeleteTodo(id model.ID) (model.Todo, error) {
+func (r *PostgresTodoRepository) DeleteTodo(id model.ID) (model.Todo, error) {
 	var todo model.Todo = model.Todo{}
 
 	if err := r.store.db.QueryRow(

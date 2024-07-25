@@ -3,7 +3,7 @@
 DATABASE_URL ?= postgres://root:root@localhost:5433/crud?sslmode=disable
 
 build:
-	go build -o main -v ./cmd/crud
+	go build -o build/main -v ./cmd/crud
 
 migration_down:
 	migrate -path migrations -database "$(DATABASE_URL)" down

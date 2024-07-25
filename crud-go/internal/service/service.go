@@ -19,10 +19,10 @@ var _ ITodoService = &TodoService{}
 type TodoService struct {
 	config *Config
 	logger *slog.Logger
-	store  *store.Store
+	store  store.Store
 }
 
-func NewTodoService(logger *slog.Logger, store *store.Store, config *Config) ITodoService {
+func NewTodoService(logger *slog.Logger, store store.Store, config *Config) ITodoService {
 	return &TodoService{
 		config: config,
 		logger: logger,
@@ -32,30 +32,30 @@ func NewTodoService(logger *slog.Logger, store *store.Store, config *Config) ITo
 
 // CreateTodo implements ITodoService.
 func (t *TodoService) CreateTodo(title string) (*model.Todo, error) {
-	todo, err := t.store.Todos.CreateTodo(title)
+	todo, err := t.store.Todos().CreateTodo(title)
 	return &todo, err
 }
 
 // DeleteTodo implements ITodoService.
 func (t *TodoService) DeleteTodo(id model.ID) (*model.Todo, error) {
-	todo, err := t.store.Todos.DeleteTodo(id)
+	todo, err := t.store.Todos().DeleteTodo(id)
 	return &todo, err
 }
 
 // GetTodos implements ITodoService.
 func (t *TodoService) GetTodos(ids []model.ID) ([]model.Todo, error) {
-	todos, err := t.store.Todos.GetTodos(ids)
+	todos, err := t.store.Todos().GetTodos(ids)
 	return todos, err
 }
 
 // ToggleTodo implements ITodoService.
 func (t *TodoService) ToggleTodo(id model.ID) (*model.Todo, error) {
-	todo, err := t.store.Todos.ToggleTodo(id)
+	todo, err := t.store.Todos().ToggleTodo(id)
 	return &todo, err
 }
 
 // UpdateTodo implements ITodoService.
 func (t *TodoService) UpdateTodo(id model.ID, title *string, complete *bool) (*model.Todo, error) {
-	todo, err := t.store.Todos.UpdateTodo(id, title, complete)
+	todo, err := t.store.Todos().UpdateTodo(id, title, complete)
 	return &todo, err
 }

@@ -16,7 +16,7 @@ type HttpServer struct {
 	service service.ITodoService
 }
 
-func NewHttpServer(logger *slog.Logger, store *store.Store, config *HttpConfig, serviceConfig *service.Config) *HttpServer {
+func NewHttpServer(logger *slog.Logger, store store.Store, config *HttpConfig, serviceConfig *service.Config) *HttpServer {
 	return &HttpServer{
 		config:  config,
 		logger:  logger,

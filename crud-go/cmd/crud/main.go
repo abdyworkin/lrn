@@ -1,41 +1,22 @@
 package main
 
 import (
+	"crud/internal/config"
 	"crud/internal/store"
 	"crud/internal/transport"
-	"flag"
 	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
-
-	"github.com/BurntSushi/toml"
 )
-
-var (
-	configPath string
-)
-
-func init() {
-	flag.StringVar(&configPath, "config-path", "configs/apiserver.toml", "path to config file")
-}
-
-//TODO: завернуть в Docker
-//TODO: README.md
-//TODO: попарвить README репозитория
 
 func main() {
-	flag.Parse()
-
-	appConfig := NewAppConfig()
-	_, err := toml.DecodeFile(configPath, appConfig)
+	appConfig, err := config.ParseConfig()
 	if err != nil {
-		slog.Error(err.Error())
+		slog.Error("Failed init app configuration", "error", err.Error())
 		return
 	}
-
-	overrideEnv(appConfig)
 
 	logLevel := new(slog.LevelVar)
 
@@ -56,10 +37,10 @@ func main() {
 
 	logger.Info("Logger configured")
 
-	store := store.New(appConfig.Store)
+	store := store.NewPostgresStore(appConfig.Store)
 
 	if err := store.Open(); err != nil {
-		logger.Error("Error opening database connection", err.Error())
+		logger.Error("Error opening database connection", "error", err.Error())
 		return
 	}
 
@@ -78,13 +59,4 @@ func main() {
 	}()
 
 	logger.Warn("Server closed", "error", (<-errChan).Error())
-}
-
-func overrideEnv(config *AppConfig) {
-	if dbUrl := os.Getenv("DATABASE_URL"); dbUrl != "" {
-		config.Store.DatabaseUrl = dbUrl
-	}
-	if logLevel := os.Getenv("LOG_LEVEL"); logLevel != "" {
-		config.LogLevel = logLevel
-	}
 }

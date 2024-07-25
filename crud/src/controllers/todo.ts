@@ -17,7 +17,6 @@ export const getTodo: Controller<{ id: string }> = async (req, res) => {
         return
     }
 
-    //TODO: проверить есть ли необходимость оборачивать в try-catch
     const todo = await AppDataSource
         .getRepository(TodoModel)
         .findOneBy({ id: Number(req.params.id) })

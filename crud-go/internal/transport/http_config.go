@@ -1,7 +1,7 @@
 package transport
 
 type HttpConfig struct {
-	BindAddress string `toml:"bind_address"`
+	BindAddress string
 }
 
 func NewHttpConfig() *HttpConfig {
