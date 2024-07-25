@@ -74,9 +74,7 @@ func newPostgresFieldRepository(store *PostgresStore) *PostgresFieldRepository {
 }
 
 // CreateFieldValues implements FieldRepository.
-func (p *PostgresFieldRepository) CreateFieldValues(fields []model.FieldValue) ([]model.FieldValue, error) {
-	var ret []model.FieldValue
-
+func (p *PostgresFieldRepository) CreateFieldValues(fields []model.FieldValue) error {
 	stringFields := make([]model.FieldValue, 0, len(fields))
 	numberFields := make([]model.FieldValue, 0, len(fields))
 	enumFields := make([]model.FieldValue, 0, len(fields))
@@ -94,14 +92,14 @@ func (p *PostgresFieldRepository) CreateFieldValues(fields []model.FieldValue) (
 
 	tx, err := p.store.db.Begin()
 	if err != nil {
-		return nil, fmt.Errorf("failed to begin transaction: %s", err.Error())
+		return fmt.Errorf("failed to begin transaction: %s", err.Error())
 	}
 
 	if len(stringFields) > 0 {
 		err = p.createFieldValues(tx, stringFields, "string_values")
 		if err != nil {
 			tx.Rollback()
-			return nil, err
+			return err
 		}
 	}
 
@@ -109,7 +107,7 @@ func (p *PostgresFieldRepository) CreateFieldValues(fields []model.FieldValue) (
 		err = p.createFieldValues(tx, numberFields, "number_values")
 		if err != nil {
 			tx.Rollback()
-			return nil, err
+			return err
 		}
 	}
 
@@ -117,16 +115,16 @@ func (p *PostgresFieldRepository) CreateFieldValues(fields []model.FieldValue) (
 		err = p.createFieldValues(tx, enumFields, "enum_values")
 		if err != nil {
 			tx.Rollback()
-			return nil, err
+			return err
 		}
 	}
 
 	err = tx.Commit()
 	if err != nil {
-		return nil, fmt.Errorf("failed to commit transaction: %s", err.Error())
+		return fmt.Errorf("failed to commit transaction: %s", err.Error())
 	}
 
-	return ret, nil
+	return nil
 }
 
 // DeleteFieldValues implements FieldRepository.
@@ -298,6 +296,11 @@ func (p *PostgresFieldRepository) UpdateFieldValues(fields []model.FieldValue) (
 		}
 
 		ret = append(ret, updatedEnumFields...)
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %s", err.Error())
 	}
 
 	return ret, nil

@@ -2,8 +2,14 @@ package main
 
 import (
 	"fieldval/internal/config"
+	"fieldval/internal/service"
+	"fieldval/internal/store"
+	"fieldval/internal/transport/rmq"
+	"fmt"
 	"log/slog"
 	"os"
+	"os/signal"
+	"syscall"
 )
 
 func main() {
@@ -16,9 +22,41 @@ func main() {
 
 	logger := configuredLogger(appConfig.LogLevel)
 
+	errChan := make(chan error)
+
 	logger.Info("App initializing...")
 	logger.Info("Loaded config file")
 
+	store := store.NewPostgresStore(logger.With("module", "store"), appConfig.Store)
+
+	if err := store.Open(); err != nil {
+		errChan <- err
+		slog.Error("failed start store", "error", err.Error())
+	}
+
+	service := service.NewService(store, logger.With("module", "service"), appConfig.Service)
+
+	go func() {
+		rmqServer := rmq.NewRabbitMQServer(service, logger.With("module", "rmq"), appConfig.Rmq)
+
+		if err := rmqServer.Open(); err != nil {
+			errChan <- err
+			logger.Error("failed start rmq server", "error", err.Error())
+		}
+
+		if err := rmqServer.StartHandlers(); err != nil {
+			errChan <- err
+			logger.Error("failed start RabbitMQ handlers", "error", err.Error())
+		}
+	}()
+
+	go func() {
+		c := make(chan os.Signal, 1)
+		signal.Notify(c, syscall.SIGINT, syscall.SIGTERM)
+		errChan <- fmt.Errorf("signal: %s", <-c)
+	}()
+
+	logger.Info("service exitting", "error", <-errChan)
 }
 
 func configuredLogger(logLevel string) *slog.Logger {

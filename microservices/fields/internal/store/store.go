@@ -10,7 +10,7 @@ type Store interface {
 }
 
 type FieldRepository interface {
-	CreateFieldValues(fields []model.FieldValue) ([]model.FieldValue, error)
+	CreateFieldValues(fields []model.FieldValue) error
 	UpdateFieldValues(fields []model.FieldValue) ([]model.FieldValue, error)
 	DeleteFieldValues(fieldIds []model.FieldValuePrimaryKeys) ([]model.FieldValue, error)
 	GetFieldValues(fieldIds []model.FieldValuePrimaryKeys) ([]model.FieldValue, error)

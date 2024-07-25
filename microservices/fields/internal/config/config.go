@@ -2,7 +2,9 @@ package config
 
 import (
 	"errors"
+	"fieldval/internal/service"
 	"fieldval/internal/store"
+	"fieldval/internal/transport/rmq"
 	"log/slog"
 	"os"
 
@@ -12,19 +14,23 @@ import (
 type AppConfig struct {
 	LogLevel string
 	Store    *store.Config
+	Service  *service.Config
+	Rmq      *rmq.Config
 }
 
 func NewAppConfig() *AppConfig {
 	return &AppConfig{
 		LogLevel: "debug",
 		Store:    store.NewConfig(),
+		Service:  service.NewConfig(),
+		Rmq:      rmq.NewConfig(),
 	}
 }
 
 func createDefaultConfig() error {
-	// viper.SetDefault("Service", service.NewConfig())
+	viper.SetDefault("Service", service.NewConfig())
 	viper.SetDefault("Store", store.NewConfig())
-	// viper.SetDefault("Http", transport.NewHttpConfig())
+	viper.SetDefault("Rmq", rmq.NewConfig())
 	viper.SetDefault("LogLevel", "debug")
 
 	viper.SetConfigType("yaml")
@@ -42,8 +48,8 @@ func importConfig() error {
 	viper.AddConfigPath("./config")
 	viper.SetConfigName("config.yaml")
 
-	// viper.BindEnv("Store.DatabaseUrl", "DATABASE_URL")
-	// viper.BindEnv("Http.BindAddress", "HTTP_BIND_ADDRESS")
+	viper.BindEnv("Rmq.RabbitMQUrl", "RABBIT_MQ_URL")
+	viper.BindEnv("Store.DatabaseUrl", "DATABASE_URL")
 	viper.BindEnv("LogLevel", "LOG_LEVEL")
 
 	if err := viper.ReadInConfig(); err != nil {

@@ -1,6 +1,10 @@
 package rmq
 
-type Server struct {
-}
+type RabbitHandler func([]byte) []byte
 
-//TODO: дописать сервер
+type RabbitMQServer interface {
+	Open() error
+	Close() error
+
+	StartHandlers() error
+}

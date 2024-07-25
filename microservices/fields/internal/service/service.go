@@ -1,23 +1,15 @@
 package service
 
 import (
-	"fieldval/internal/store"
+	"fieldval/internal/model"
 	"log/slog"
 )
 
-type Service struct {
-	config *Config
-	logger *slog.Logger
-
-	store *store.Store
+type Service interface {
+	CreateFields(fields []model.FieldValue) error
+	UpdateFields(fields []model.FieldValue) ([]model.FieldValue, error)
+	DeleteFields(fieldIds []model.FieldValuePrimaryKeys) ([]model.FieldValue, error)
+	GetFields(fieldIds []model.FieldValuePrimaryKeys) ([]model.FieldValue, error)
+	GetTaskFields(taskIds []model.ID) ([]model.FieldValue, error)
+	Logger() *slog.Logger
 }
-
-func NewService(store *store.Store, logger *slog.Logger, config *Config) *Service {
-	return &Service{
-		logger: logger,
-		config: config,
-		store:  store,
-	}
-}
-
-//TODO: дописать сервис
