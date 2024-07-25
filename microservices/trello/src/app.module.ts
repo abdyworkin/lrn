@@ -15,6 +15,7 @@ import { TaskFieldNumber } from './entities/task_field_number.entity';
 import { FieldModule } from './modules/field/field.module';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { AuthModule } from './modules/auth/auth.module';
+import { FieldvalModule } from './modules/fieldval/fieldval.module';
 
 const entities = [
   Project, 
@@ -51,7 +52,7 @@ const entities = [
       synchronize: true,
     }),
 
-
+    FieldvalModule,
   ],
   controllers: [],
   providers: [],
