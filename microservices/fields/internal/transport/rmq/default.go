@@ -118,9 +118,9 @@ func (d *DefaultRabbitMQServer) startQueue(queue string, handler RabbitHandler) 
 }
 
 func (d *DefaultRabbitMQServer) StartHandlers() error {
-	err := d.startQueue("fields.create", pipe[transport.CreateFieldsRequest, transport.CreateFieldsResponse](
+	err := d.startQueue("fields.create", pipe[transport.CreateRequest, transport.CreateResponse](
 		transport.JsonDecoder,
-		transport.NewCreateFieldsEndpoint(d.service),
+		transport.NewCreateEndpoint(d.service),
 		transport.JsonEncoder,
 		d.logger,
 	))
@@ -128,9 +128,9 @@ func (d *DefaultRabbitMQServer) StartHandlers() error {
 		return err
 	}
 
-	err = d.startQueue("fields.update", pipe[transport.UpdateFieldsRequest, transport.UpdateFieldsResponse](
+	err = d.startQueue("fields.update", pipe[transport.UpdateRequest, transport.UpdateResponse](
 		transport.JsonDecoder,
-		transport.NewUpdateFieldsEndpoint(d.service),
+		transport.NewUpdateEndpoint(d.service),
 		transport.JsonEncoder,
 		d.logger,
 	))
@@ -138,9 +138,9 @@ func (d *DefaultRabbitMQServer) StartHandlers() error {
 		return err
 	}
 
-	err = d.startQueue("fields.delete", pipe[transport.DeleteFieldsRequest, transport.DeleteFieldsResponse](
+	err = d.startQueue("fields.delete", pipe[transport.DeleteRequest, transport.DeleteResponse](
 		transport.JsonDecoder,
-		transport.NewDeleteFieldsEndpoint(d.service),
+		transport.NewDeleteEndpoint(d.service),
 		transport.JsonEncoder,
 		d.logger,
 	))
@@ -148,9 +148,9 @@ func (d *DefaultRabbitMQServer) StartHandlers() error {
 		return err
 	}
 
-	err = d.startQueue("fields.get", pipe[transport.GetFieldsRequest, transport.GetFieldsResponse](
+	err = d.startQueue("fields.delete.taskid", pipe[transport.DeleteByTaskIdsRequest, transport.DeleteByTaskIdsResponse](
 		transport.JsonDecoder,
-		transport.NewGetFieldsEndpoint(d.service),
+		transport.NewDeleteByTaskIdsEndpoint(d.service),
 		transport.JsonEncoder,
 		d.logger,
 	))
@@ -158,9 +158,39 @@ func (d *DefaultRabbitMQServer) StartHandlers() error {
 		return err
 	}
 
-	err = d.startQueue("fields.get.fortask", pipe[transport.GetTaskFieldsRequest, transport.GetTaskFieldsResponse](
+	err = d.startQueue("fields.delete.fieldid", pipe[transport.DeleteByFieldIdsRequest, transport.DeleteByFieldIdsResponse](
 		transport.JsonDecoder,
-		transport.NewGetTaskFieldsEndpoint(d.service),
+		transport.NewDeleteByFieldIdsEndpoint(d.service),
+		transport.JsonEncoder,
+		d.logger,
+	))
+	if err != nil {
+		return err
+	}
+
+	err = d.startQueue("fields.get", pipe[transport.GetRequest, transport.GetResponse](
+		transport.JsonDecoder,
+		transport.NewGetEndpoint(d.service),
+		transport.JsonEncoder,
+		d.logger,
+	))
+	if err != nil {
+		return err
+	}
+
+	err = d.startQueue("fields.get.taskid", pipe[transport.GetByTaskIdsRequest, transport.GetByTaskIdsResponse](
+		transport.JsonDecoder,
+		transport.NewGetByTaskIdsEndpoint(d.service),
+		transport.JsonEncoder,
+		d.logger,
+	))
+	if err != nil {
+		return err
+	}
+
+	err = d.startQueue("fields.get.fieldid", pipe[transport.GetByFieldIdsRequest, transport.GetByFieldIdsResponse](
+		transport.JsonDecoder,
+		transport.NewGetByFieldIdsEndpoint(d.service),
 		transport.JsonEncoder,
 		d.logger,
 	))

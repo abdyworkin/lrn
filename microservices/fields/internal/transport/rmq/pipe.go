@@ -5,8 +5,15 @@ import (
 	"log/slog"
 )
 
+type RabbitRequest[T any] struct {
+	Pattern struct {
+		Action string `json:"action"`
+	} `json:"pattern"`
+	Data T `json:"data"`
+}
+
 func pipe[Request any, Response any](
-	decoder func(data []byte) (Request, error),
+	decoder func(data []byte) (RabbitRequest[Request], error),
 	endpoint func(Request) (Response, error),
 	encoder func(interface{}) ([]byte, error),
 	logger *slog.Logger,
@@ -24,7 +31,7 @@ func pipe[Request any, Response any](
 			return transport.EncodeError(err)
 		}
 
-		response, err := endpoint(request)
+		response, err := endpoint(request.Data)
 		if err != nil {
 			logger.Error("Failed process request", "error", err.Error())
 			return transport.EncodeError(err)

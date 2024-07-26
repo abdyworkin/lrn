@@ -1,0 +1,6 @@
+loglevel: debug
+rmq:
+    rabbitmqurl: amqp://guest:guest@rabbitmq:5672/
+service: {}
+store:
+    databaseurl: postgres://root:root@localhost:5432/fields?sslmode=disable

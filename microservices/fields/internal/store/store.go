@@ -10,9 +10,12 @@ type Store interface {
 }
 
 type FieldRepository interface {
-	CreateFieldValues(fields []model.FieldValue) error
-	UpdateFieldValues(fields []model.FieldValue) ([]model.FieldValue, error)
-	DeleteFieldValues(fieldIds []model.FieldValuePrimaryKeys) ([]model.FieldValue, error)
-	GetFieldValues(fieldIds []model.FieldValuePrimaryKeys) ([]model.FieldValue, error)
-	GetFieldValuesForTasks(taskId []model.ID) ([]model.FieldValue, error)
+	Create(fields []model.FieldValue) error
+	Update(fields []model.FieldValue) ([]model.FieldValue, error)
+	Delete(fieldIds []model.FieldValuePrimaryKeys) ([]model.FieldValue, error)
+	DeleteByFields(fieldIds []model.ID) ([]model.FieldValue, error)
+	DeleteByTasks(taskIds []model.ID) ([]model.FieldValue, error)
+	Get(fieldIds []model.FieldValuePrimaryKeys) ([]model.FieldValue, error)
+	GetByTaskIds(taskId []model.ID) ([]model.FieldValue, error)
+	GetByFields(fieldIds []model.ID) ([]model.FieldValue, error)
 }

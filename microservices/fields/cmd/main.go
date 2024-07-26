@@ -22,7 +22,7 @@ func main() {
 
 	logger := configuredLogger(appConfig.LogLevel)
 
-	errChan := make(chan error)
+	errChan := make(chan error, 10)
 
 	logger.Info("App initializing...")
 	logger.Info("Loaded config file")

@@ -23,24 +23,44 @@ func NewService(store store.Store, logger *slog.Logger, config *Config) *Default
 	}
 }
 
-func (s *DefaultService) CreateFields(fields []model.FieldValue) error {
-	return s.store.Fields().CreateFieldValues(fields)
+func (s *DefaultService) Create(fields []model.FieldValue) error {
+	return s.store.Fields().Create(fields)
 }
 
-func (s *DefaultService) UpdateFields(fields []model.FieldValue) ([]model.FieldValue, error) {
-	return s.store.Fields().UpdateFieldValues(fields)
+func (s *DefaultService) Update(fields []model.FieldValue) ([]model.FieldValue, error) {
+	return s.store.Fields().Update(fields)
 }
 
-func (s *DefaultService) DeleteFields(fieldIds []model.FieldValuePrimaryKeys) ([]model.FieldValue, error) {
-	return s.store.Fields().DeleteFieldValues(fieldIds)
+func (s *DefaultService) Delete(fieldIds []model.FieldValuePrimaryKeys) ([]model.FieldValue, error) {
+	return s.store.Fields().Delete(fieldIds)
 }
 
-func (s *DefaultService) GetFields(fieldIds []model.FieldValuePrimaryKeys) ([]model.FieldValue, error) {
-	return s.store.Fields().GetFieldValues(fieldIds)
+func (s *DefaultService) Get(fieldIds []model.FieldValuePrimaryKeys) ([]model.FieldValue, error) {
+	return s.store.Fields().Get(fieldIds)
 }
 
 func (s *DefaultService) GetTaskFields(taskIds []model.ID) ([]model.FieldValue, error) {
-	return s.store.Fields().GetFieldValuesForTasks(taskIds)
+	return s.store.Fields().GetByTaskIds(taskIds)
+}
+
+// DeleteByFieldIds implements Service.
+func (s *DefaultService) DeleteByFieldIds(fieldIds []model.ID) ([]model.FieldValue, error) {
+	return s.store.Fields().DeleteByFields(fieldIds)
+}
+
+// DeleteByTaskIds implements Service.
+func (s *DefaultService) DeleteByTaskIds(taskIds []model.ID) ([]model.FieldValue, error) {
+	return s.store.Fields().DeleteByTasks(taskIds)
+}
+
+// GetByFieldIds implements Service.
+func (s *DefaultService) GetByFieldIds(fieldIds []model.ID) ([]model.FieldValue, error) {
+	return s.store.Fields().GetByFields(fieldIds)
+}
+
+// GetByTaskIds implements Service.
+func (s *DefaultService) GetByTaskIds(taskIds []model.ID) ([]model.FieldValue, error) {
+	return s.store.Fields().GetByTaskIds(taskIds)
 }
 
 func (s *DefaultService) Logger() *slog.Logger {

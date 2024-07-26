@@ -12,90 +12,147 @@ type ErrorResponse struct {
 
 type Endpoint[Request any, Response any] func(Request) (Response, error)
 
-type CreateFieldsRequest struct {
+type CreateRequest struct {
 	Fields []model.FieldValue `json:"fields" validate:"required,min=1"`
 }
 
-type CreateFieldsResponse struct {
+type CreateResponse struct {
 	Result bool `json:"result"`
 }
 
-func NewCreateFieldsEndpoint(s service.Service) Endpoint[CreateFieldsRequest, CreateFieldsResponse] {
-	return func(req CreateFieldsRequest) (CreateFieldsResponse, error) {
-		err := s.CreateFields(req.Fields)
-		return CreateFieldsResponse{Result: err == nil}, err
+func NewCreateEndpoint(s service.Service) Endpoint[CreateRequest, CreateResponse] {
+	return func(req CreateRequest) (CreateResponse, error) {
+		err := s.Create(req.Fields)
+		return CreateResponse{Result: err == nil}, err
 	}
 }
 
-type UpdateFieldsRequest struct {
+type UpdateRequest struct {
 	Fields []model.FieldValue `json:"fields" validate:"required,min=1"`
 }
 
-type UpdateFieldsResponse struct {
-	Fields []model.FieldValue `json:"result"`
+type UpdateResponse struct {
+	Fields []model.FieldValue `json:"fields"`
 }
 
-func NewUpdateFieldsEndpoint(s service.Service) Endpoint[UpdateFieldsRequest, UpdateFieldsResponse] {
-	return func(req UpdateFieldsRequest) (UpdateFieldsResponse, error) {
-		fields, err := s.UpdateFields(req.Fields)
+func NewUpdateEndpoint(s service.Service) Endpoint[UpdateRequest, UpdateResponse] {
+	return func(req UpdateRequest) (UpdateResponse, error) {
+		fields, err := s.Update(req.Fields)
 		if err != nil {
-			return UpdateFieldsResponse{}, err
+			return UpdateResponse{}, err
 		}
-		return UpdateFieldsResponse{Fields: fields}, nil
+		return UpdateResponse{Fields: fields}, nil
 	}
 }
 
-type DeleteFieldsRequest struct {
+type DeleteRequest struct {
 	FieldIds []model.FieldValuePrimaryKeys `json:"fieldIds" validate:"required,min=1"`
 }
 
-type DeleteFieldsResponse struct {
-	Fields []model.FieldValue `json:"result"`
+type DeleteResponse struct {
+	Fields []model.FieldValue `json:"fields"`
 }
 
-func NewDeleteFieldsEndpoint(s service.Service) Endpoint[DeleteFieldsRequest, DeleteFieldsResponse] {
-	return func(req DeleteFieldsRequest) (DeleteFieldsResponse, error) {
-		fields, err := s.DeleteFields(req.FieldIds)
+func NewDeleteEndpoint(s service.Service) Endpoint[DeleteRequest, DeleteResponse] {
+	return func(req DeleteRequest) (DeleteResponse, error) {
+		fields, err := s.Delete(req.FieldIds)
 		if err != nil {
-			return DeleteFieldsResponse{}, err
+			return DeleteResponse{}, err
 		}
 
-		return DeleteFieldsResponse{Fields: fields}, err
+		return DeleteResponse{Fields: fields}, err
 	}
 }
 
-type GetFieldsRequest struct {
+type DeleteByTaskIdsRequest struct {
+	Ids []model.ID `json:"taskIds" validate:"required,min=1"`
+}
+
+type DeleteByTaskIdsResponse struct {
+	Fields []model.FieldValue `json:"fields"`
+}
+
+func NewDeleteByTaskIdsEndpoint(s service.Service) Endpoint[DeleteByTaskIdsRequest, DeleteByTaskIdsResponse] {
+	return func(req DeleteByTaskIdsRequest) (DeleteByTaskIdsResponse, error) {
+		fields, err := s.DeleteByTaskIds(req.Ids)
+		if err != nil {
+			return DeleteByTaskIdsResponse{}, err
+		}
+
+		return DeleteByTaskIdsResponse{Fields: fields}, nil
+	}
+}
+
+type DeleteByFieldIdsRequest struct {
+	Ids []model.ID `json:"fieldIds" validate:"required,min=1"`
+}
+
+type DeleteByFieldIdsResponse struct {
+	Fields []model.FieldValue `json:"fields"`
+}
+
+func NewDeleteByFieldIdsEndpoint(s service.Service) Endpoint[DeleteByFieldIdsRequest, DeleteByFieldIdsResponse] {
+	return func(req DeleteByFieldIdsRequest) (DeleteByFieldIdsResponse, error) {
+		fields, err := s.DeleteByFieldIds(req.Ids)
+		if err != nil {
+			return DeleteByFieldIdsResponse{}, err
+		}
+
+		return DeleteByFieldIdsResponse{Fields: fields}, nil
+	}
+}
+
+type GetRequest struct {
 	FieldIds []model.FieldValuePrimaryKeys `json:"fieldIds" validate:"required,min=1"`
 }
 
-type GetFieldsResponse struct {
-	Fields []model.FieldValue `json:"result"`
+type GetResponse struct {
+	Fields []model.FieldValue `json:"fields"`
 }
 
-func NewGetFieldsEndpoint(s service.Service) Endpoint[GetFieldsRequest, GetFieldsResponse] {
-	return func(req GetFieldsRequest) (GetFieldsResponse, error) {
-		fields, err := s.GetFields(req.FieldIds)
+func NewGetEndpoint(s service.Service) Endpoint[GetRequest, GetResponse] {
+	return func(req GetRequest) (GetResponse, error) {
+		fields, err := s.Get(req.FieldIds)
 		if err != nil {
-			return GetFieldsResponse{}, err
+			return GetResponse{}, err
 		}
-		return GetFieldsResponse{Fields: fields}, nil
+		return GetResponse{Fields: fields}, nil
 	}
 }
 
-type GetTaskFieldsRequest struct {
+type GetByTaskIdsRequest struct {
 	TaskIds []model.ID `json:"taskIds" validate:"required,min=1"`
 }
 
-type GetTaskFieldsResponse struct {
-	Fields []model.FieldValue `json:"result"`
+type GetByTaskIdsResponse struct {
+	Fields []model.FieldValue `json:"fields"`
 }
 
-func NewGetTaskFieldsEndpoint(s service.Service) Endpoint[GetTaskFieldsRequest, GetTaskFieldsResponse] {
-	return func(req GetTaskFieldsRequest) (GetTaskFieldsResponse, error) {
-		fields, err := s.GetTaskFields(req.TaskIds)
+func NewGetByTaskIdsEndpoint(s service.Service) Endpoint[GetByTaskIdsRequest, GetByTaskIdsResponse] {
+	return func(req GetByTaskIdsRequest) (GetByTaskIdsResponse, error) {
+		fields, err := s.GetByTaskIds(req.TaskIds)
 		if err != nil {
-			return GetTaskFieldsResponse{}, err
+			return GetByTaskIdsResponse{}, err
 		}
-		return GetTaskFieldsResponse{Fields: fields}, nil
+		return GetByTaskIdsResponse{Fields: fields}, nil
+	}
+}
+
+type GetByFieldIdsRequest struct {
+	Ids []model.ID `json:"fieldIds" validate:"required,min=1"s`
+}
+
+type GetByFieldIdsResponse struct {
+	Fields []model.FieldValue `json:"fields"`
+}
+
+func NewGetByFieldIdsEndpoint(s service.Service) Endpoint[GetByFieldIdsRequest, GetByFieldIdsResponse] {
+	return func(req GetByFieldIdsRequest) (GetByFieldIdsResponse, error) {
+		fields, err := s.GetByFieldIds(req.Ids)
+		if err != nil {
+			return GetByFieldIdsResponse{}, err
+		}
+
+		return GetByFieldIdsResponse{Fields: fields}, nil
 	}
 }
