@@ -32,16 +32,16 @@ type UpdateRequest struct {
 }
 
 type UpdateResponse struct {
-	Fields []model.FieldValue `json:"fields"`
+	Result bool `json:"result"`
 }
 
 func NewUpdateEndpoint(s service.Service) Endpoint[UpdateRequest, UpdateResponse] {
 	return func(req UpdateRequest) (UpdateResponse, error) {
-		fields, err := s.Update(req.Fields)
+		err := s.Update(req.Fields)
 		if err != nil {
-			return UpdateResponse{}, err
+			return UpdateResponse{false}, err
 		}
-		return UpdateResponse{Fields: fields}, nil
+		return UpdateResponse{true}, nil
 	}
 }
 
@@ -50,17 +50,17 @@ type DeleteRequest struct {
 }
 
 type DeleteResponse struct {
-	Fields []model.FieldValue `json:"fields"`
+	Result bool `json:"result"`
 }
 
 func NewDeleteEndpoint(s service.Service) Endpoint[DeleteRequest, DeleteResponse] {
 	return func(req DeleteRequest) (DeleteResponse, error) {
-		fields, err := s.Delete(req.FieldIds)
+		err := s.Delete(req.FieldIds)
 		if err != nil {
-			return DeleteResponse{}, err
+			return DeleteResponse{false}, err
 		}
 
-		return DeleteResponse{Fields: fields}, err
+		return DeleteResponse{true}, nil
 	}
 }
 
@@ -69,17 +69,17 @@ type DeleteByTaskIdsRequest struct {
 }
 
 type DeleteByTaskIdsResponse struct {
-	Fields []model.FieldValue `json:"fields"`
+	Result bool `json:"result"`
 }
 
 func NewDeleteByTaskIdsEndpoint(s service.Service) Endpoint[DeleteByTaskIdsRequest, DeleteByTaskIdsResponse] {
 	return func(req DeleteByTaskIdsRequest) (DeleteByTaskIdsResponse, error) {
-		fields, err := s.DeleteByTaskIds(req.Ids)
+		err := s.DeleteByTaskIds(req.Ids)
 		if err != nil {
-			return DeleteByTaskIdsResponse{}, err
+			return DeleteByTaskIdsResponse{false}, err
 		}
 
-		return DeleteByTaskIdsResponse{Fields: fields}, nil
+		return DeleteByTaskIdsResponse{true}, nil
 	}
 }
 
@@ -88,17 +88,17 @@ type DeleteByFieldIdsRequest struct {
 }
 
 type DeleteByFieldIdsResponse struct {
-	Fields []model.FieldValue `json:"fields"`
+	Result bool `json:"result"`
 }
 
 func NewDeleteByFieldIdsEndpoint(s service.Service) Endpoint[DeleteByFieldIdsRequest, DeleteByFieldIdsResponse] {
 	return func(req DeleteByFieldIdsRequest) (DeleteByFieldIdsResponse, error) {
-		fields, err := s.DeleteByFieldIds(req.Ids)
+		err := s.DeleteByFieldIds(req.Ids)
 		if err != nil {
-			return DeleteByFieldIdsResponse{}, err
+			return DeleteByFieldIdsResponse{false}, err
 		}
 
-		return DeleteByFieldIdsResponse{Fields: fields}, nil
+		return DeleteByFieldIdsResponse{true}, nil
 	}
 }
 
@@ -139,7 +139,7 @@ func NewGetByTaskIdsEndpoint(s service.Service) Endpoint[GetByTaskIdsRequest, Ge
 }
 
 type GetByFieldIdsRequest struct {
-	Ids []model.ID `json:"fieldIds" validate:"required,min=1"s`
+	Ids []model.ID `json:"fieldIds" validate:"required,min=1"`
 }
 
 type GetByFieldIdsResponse struct {

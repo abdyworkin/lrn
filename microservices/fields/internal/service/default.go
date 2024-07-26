@@ -27,11 +27,11 @@ func (s *DefaultService) Create(fields []model.FieldValue) error {
 	return s.store.Fields().Create(fields)
 }
 
-func (s *DefaultService) Update(fields []model.FieldValue) ([]model.FieldValue, error) {
+func (s *DefaultService) Update(fields []model.FieldValue) error {
 	return s.store.Fields().Update(fields)
 }
 
-func (s *DefaultService) Delete(fieldIds []model.FieldValuePrimaryKeys) ([]model.FieldValue, error) {
+func (s *DefaultService) Delete(fieldIds []model.FieldValuePrimaryKeys) error {
 	return s.store.Fields().Delete(fieldIds)
 }
 
@@ -39,17 +39,13 @@ func (s *DefaultService) Get(fieldIds []model.FieldValuePrimaryKeys) ([]model.Fi
 	return s.store.Fields().Get(fieldIds)
 }
 
-func (s *DefaultService) GetTaskFields(taskIds []model.ID) ([]model.FieldValue, error) {
-	return s.store.Fields().GetByTaskIds(taskIds)
-}
-
 // DeleteByFieldIds implements Service.
-func (s *DefaultService) DeleteByFieldIds(fieldIds []model.ID) ([]model.FieldValue, error) {
+func (s *DefaultService) DeleteByFieldIds(fieldIds []model.ID) error {
 	return s.store.Fields().DeleteByFields(fieldIds)
 }
 
 // DeleteByTaskIds implements Service.
-func (s *DefaultService) DeleteByTaskIds(taskIds []model.ID) ([]model.FieldValue, error) {
+func (s *DefaultService) DeleteByTaskIds(taskIds []model.ID) error {
 	return s.store.Fields().DeleteByTasks(taskIds)
 }
 

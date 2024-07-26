@@ -10,6 +10,7 @@ import (
 	_ "github.com/lib/pq"
 )
 
+// Я бы использовал просто JSONB для хранения значений, но раньше нужно было делать именно так
 var _ Store = &PostgresStore{}
 
 type PostgresStore struct {
@@ -75,14 +76,6 @@ func newPostgresFieldRepository(store *PostgresStore) *PostgresFieldRepository {
 
 // Create implements FieldRepository.
 func (p *PostgresFieldRepository) Create(fields []model.FieldValue) error {
-	queryTemplate := `
-		(INSERT INTO string_values (field_id, task_id, val) VALUES (%s))
-		UNION ALL
-		(INSERT INTO number_values (field_id, task_id, val) VALUES(%s))
-		UNION ALL
-		(INSERT INTO enum_values (field_id, task_id, val) VALUES(%s))
-	`
-
 	stringValues := make([]model.FieldValue, 0, len(fields))
 	numberValues := make([]model.FieldValue, 0, len(fields))
 	enumValues := make([]model.FieldValue, 0, len(fields))
@@ -98,100 +91,163 @@ func (p *PostgresFieldRepository) Create(fields []model.FieldValue) error {
 		}
 	}
 
-	stringValuesStr := make([]string, len(stringValues))
-	numberValuesStr := make([]string, len(numberValues))
-	enumValuesStr := make([]string, len(enumValues))
-
-	for i, v := range stringValues {
-		stringValuesStr[i] = fmt.Sprintf("(%d,%d,%s)", v.FieldId, v.TaskId, v.Value)
+	tx, err := p.store.db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to start transaction: %s", err.Error())
 	}
 
-	for i, v := range numberValues {
-		numberValuesStr[i] = fmt.Sprintf("(%d,%d,%f)", v.FieldId, v.TaskId, v.Value)
+	err = p.create(tx, stringValues, "string_values")
+	if err != nil {
+		tx.Rollback()
+		return err
 	}
 
-	for i, v := range enumValues {
-		enumValuesStr[i] = fmt.Sprintf("(%d,%d,%d)", v.FieldId, v.TaskId, v.Value)
+	err = p.create(tx, numberValues, "number_values")
+	if err != nil {
+		tx.Rollback()
+		return err
 	}
 
-	query := fmt.Sprintf(queryTemplate, strings.Join(stringValuesStr, ","), strings.Join(numberValuesStr, ","), strings.Join(enumValuesStr, ","))
+	err = p.create(tx, enumValues, "enum_values")
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
 
-	if err := p.store.db.QueryRow(query).Scan(); err != nil {
-		return fmt.Errorf("failed to create field values: %s", err.Error())
+	err = tx.Commit()
+	if err != nil {
+		return fmt.Errorf("failed to commit transaction: %s", err.Error())
+	}
+
+	return nil
+}
+
+func (p *PostgresFieldRepository) create(tx *sql.Tx, fields []model.FieldValue, table string) error {
+	queryTemplate := "INSERT INTO %s (field_id, task_id, val) VALUES (%s)"
+	values := make([]string, len(fields))
+	for i, v := range fields {
+		values[i] = fmt.Sprintf("(%d,%d,%v)", v.FieldId, v.TaskId, v.Value)
+	}
+	query := fmt.Sprintf(queryTemplate, table, strings.Join(values, ","))
+	if err := tx.QueryRow(query).Err(); err != nil {
+		return fmt.Errorf("failed to insert into %s: %s", table, err.Error())
 	}
 
 	return nil
 }
 
 // Delete implements FieldRepository.
-func (p *PostgresFieldRepository) Delete(fieldIds []model.FieldValuePrimaryKeys) ([]model.FieldValue, error) {
-	var fields []model.FieldValue = make([]model.FieldValue, len(fieldIds))
-
-	queryTemplate := `
-		(DELETE FROM string_values WHERE (field_id, task_id) IN (%s) RETURNING field_id, task_id, val)
-		UNION ALL
-		(DELETE FROM number_values WHERE (field_id, task_id) IN (%s) RETURNING field_id, task_id, val)
-		UNION ALL
-		(DELETE FROM enum_values WHERE (field_id, task_id) IN (%s) RETURNING field_id, task_id, val)
-	`
-
+func (p *PostgresFieldRepository) Delete(fieldIds []model.FieldValuePrimaryKeys) error {
 	keys := make([]string, len(fieldIds))
 	for i, v := range fieldIds {
 		keys[i] = fmt.Sprintf("(%s,%s)", v.FieldId, v.TaskId)
 	}
 	keysString := strings.Join(keys, ",")
 
-	query := fmt.Sprintf(queryTemplate, keysString, keysString, keysString)
-	rows, err := p.store.db.Query(query)
+	tx, err := p.store.db.Begin()
 	if err != nil {
-		return nil, fmt.Errorf("failed to delete field values: %s", err.Error())
+		return fmt.Errorf("failed to start transaction: %s", err.Error())
 	}
 
-	for i := 0; rows.Next(); i++ {
-		var field model.FieldValue
-		err = rows.Scan(&field.FieldId, &field.TaskId, &field.Value)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan deleted field values: %s", err.Error())
-		}
-
-		fields[i] = field
+	err = p.delete(tx, keysString, "string_values")
+	if err != nil {
+		tx.Rollback()
+		return err
 	}
 
-	return fields, nil
+	err = p.delete(tx, keysString, "number_values")
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	err = p.delete(tx, keysString, "enum_values")
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return fmt.Errorf("failed to commit transaction: %s", err.Error())
+	}
+
+	return nil
+}
+
+func (p *PostgresFieldRepository) delete(tx *sql.Tx, fieldIdsString string, table string) error {
+	queryTemplate := "DELETE FROM %s WHERE (field_id,task_id) IN (%s)"
+	query := fmt.Sprintf(queryTemplate, table, fieldIdsString)
+	err := tx.QueryRow(query).Err()
+	if err != nil {
+		return fmt.Errorf("failed to delete from %s: %s", table, err.Error())
+	}
+	return nil
 }
 
 // Get implements FieldRepository.
 func (p *PostgresFieldRepository) Get(fieldIds []model.FieldValuePrimaryKeys) ([]model.FieldValue, error) {
 	ret := make([]model.FieldValue, len(fieldIds))
 
-	queryTemplate := `
-		(SELECT field_id, task_id, val FROM string_values WHERE (field_id, task_id) IN (%s))
-		UNION ALL
-		(SELECT field_id, task_id, val FROM number_values WHERE (field_id, task_id) IN (%s))
-		UNION ALL
-		(SELECT field_id, task_id, val FROM enum_values WHERE (field_id, task_id) IN (%s))
-	`
-
 	keys := make([]string, len(fieldIds))
 	for i, v := range fieldIds {
 		keys[i] = fmt.Sprintf("(%s,%s)", v.FieldId, v.TaskId)
 	}
 	keysString := strings.Join(keys, ",")
 
-	query := fmt.Sprintf(queryTemplate, keysString, keysString, keysString)
-	rows, err := p.store.db.Query(query)
+	tx, err := p.store.db.Begin()
 	if err != nil {
-		return nil, fmt.Errorf("failed to select field values: %s", err.Error())
+		return nil, fmt.Errorf("failed to start transaction: %s", err.Error())
 	}
 
-	for i := 0; rows.Next(); i++ {
+	stringValues, err := p.get(tx, keysString, len(keys), "string", "string_values")
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
+	numberValues, err := p.get(tx, keysString, len(keys), "number", "number_values")
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
+	enumValues, err := p.get(tx, keysString, len(keys), "enum", "enum_values")
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %s", err.Error())
+	}
+
+	ret = append(ret, stringValues...)
+	ret = append(ret, numberValues...)
+	ret = append(ret, enumValues...)
+
+	return ret, nil
+}
+
+func (p *PostgresFieldRepository) get(tx *sql.Tx, fieldIdsString string, idsCount int, typeString string, table string) ([]model.FieldValue, error) {
+	ret := make([]model.FieldValue, 0, idsCount)
+
+	queryTemplate := "SELECT field_id, task_id, val FROM %s WHERE (field_id, task_id) IN (%s)"
+	query := fmt.Sprintf(queryTemplate, table, fieldIdsString)
+	rows, err := tx.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to select values form %s: %s", table, err.Error())
+	}
+
+	for rows.Next() {
 		var field model.FieldValue
 		err = rows.Scan(&field.FieldId, &field.TaskId, &field.Value)
 		if err != nil {
-			return nil, fmt.Errorf("failed to scan selected field values: %s", err.Error())
+			return nil, fmt.Errorf("failed to scan selected values from %s: %s", table, err.Error())
 		}
-
-		ret[i] = field
+		field.Type = typeString
+		ret = append(ret, field)
 	}
 
 	return ret, nil
@@ -201,86 +257,33 @@ func (p *PostgresFieldRepository) Get(fieldIds []model.FieldValuePrimaryKeys) ([
 func (p *PostgresFieldRepository) GetByTaskIds(taskIds []model.ID) ([]model.FieldValue, error) {
 	ret := make([]model.FieldValue, 0, len(taskIds))
 
-	queryTemplate := `
-		(SELECT field_id, task_id, val FROM string_values WHERE task_id IN (%s))
-		UNION ALL
-		(SELECT field_id, task_id, val FROM number_values WHERE task_id IN (%s))
-		UNION ALL
-		(SELECT field_id, task_id, val FROM enum_values WHERE task_id IN (%s))
-	`
-
 	keys := make([]string, len(taskIds))
 	for i, v := range taskIds {
 		keys[i] = fmt.Sprintf("%d", v)
 	}
 	keysString := strings.Join(keys, ",")
 
-	query := fmt.Sprintf(queryTemplate, keysString, keysString, keysString)
-	rows, err := p.store.db.Query(query)
-	if err != nil {
-		return nil, fmt.Errorf("failed to select field values: %s", err.Error())
-	}
-
-	for i := 0; rows.Next(); i++ {
-		var field model.FieldValue
-		err = rows.Scan(&field.FieldId, &field.TaskId, &field.Value)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan selected field values: %s", err.Error())
-		}
-
-		ret[i] = field
-	}
-
-	return ret, nil
-}
-
-// Update implements FieldRepository.
-func (p *PostgresFieldRepository) Update(fields []model.FieldValue) ([]model.FieldValue, error) {
-	ret := make([]model.FieldValue, 0, len(fields))
-
 	tx, err := p.store.db.Begin()
 	if err != nil {
-		return nil, fmt.Errorf("failed to begin transaction: %s", err.Error())
+		return nil, fmt.Errorf("failed to start transaction: %s", err.Error())
 	}
 
-	stringQuery := `
-		INSERT INTO string_values (field_id, task_id, val) VALUES ($1, $2, $3)
-		ON CONFLICT (field_id, task_id) DO UPDATE SET val = EXCLUDED.val
-		RETURNING field_id, task_id, val
-	`
-	numberQuery := `
-		INSERT INTO number_values (field_id, task_id, val) VALUES ($1, $2, $3)
-		ON CONFLICT (field_id, task_id) DO UPDATE SET val = EXCLUDED.val
-		RETURNING field_id, task_id, val
-	`
-	enumQuery := `
-		INSERT INTO enum_values (field_id, task_id, val) VALUES ($1, $2, $3)
-		ON CONFLICT (field_id, task_id) DO UPDATE SET val = EXCLUDED.val
-		RETURNING field_id, task_id, val
-	`
+	stringFields, err := p.getByTaskIds(tx, keysString, len(keys), "string", "string_values")
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
 
-	for _, field := range fields {
-		var query string
-		switch field.Type {
-		case "string":
-			query = stringQuery
-		case "number":
-			query = numberQuery
-		case "enum":
-			query = enumQuery
-		default:
-			return nil, fmt.Errorf("unsupported field type: %s", field.Type)
-		}
+	numberFields, err := p.getByTaskIds(tx, keysString, len(keys), "number", "number_values")
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
 
-		row := tx.QueryRow(query, field.FieldId, field.TaskId, field.Value)
-		var updatedField model.FieldValue
-		err = row.Scan(&updatedField.FieldId, &updatedField.TaskId, &updatedField.Value)
-		if err != nil {
-			tx.Rollback()
-			return nil, fmt.Errorf("failed to update field values: %s", err.Error())
-		}
-
-		ret = append(ret, updatedField)
+	enumFields, err := p.getByTaskIds(tx, keysString, len(keys), "enum", "enum_values")
+	if err != nil {
+		tx.Rollback()
+		return nil, err
 	}
 
 	err = tx.Commit()
@@ -288,94 +291,206 @@ func (p *PostgresFieldRepository) Update(fields []model.FieldValue) ([]model.Fie
 		return nil, fmt.Errorf("failed to commit transaction: %s", err.Error())
 	}
 
+	ret = append(ret, stringFields...)
+	ret = append(ret, numberFields...)
+	ret = append(ret, enumFields...)
+
 	return ret, nil
 }
 
+func (p *PostgresFieldRepository) getByTaskIds(tx *sql.Tx, taskIdsString string, count int, typeString string, table string) ([]model.FieldValue, error) {
+	ret := make([]model.FieldValue, 0, count)
+
+	queryTemplate := "SELECT field_id, task_id, val FROM %s WHERE task_id IN (%s)"
+	query := fmt.Sprintf(queryTemplate, table, taskIdsString)
+
+	rows, err := tx.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to select values from %s: %s", table, err.Error())
+	}
+
+	for rows.Next() {
+		var field model.FieldValue
+		err = rows.Scan(&field.FieldId, &field.TaskId, &field.Value)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan selected values from %s: %s", table, err.Error())
+		}
+		field.Type = typeString
+		ret = append(ret, field)
+	}
+
+	return ret, nil
+}
+
+// Update implements FieldRepository.
+func (p *PostgresFieldRepository) Update(fields []model.FieldValue) error {
+	stringFields := make([]model.FieldValue, 0, len(fields))
+	numberFields := make([]model.FieldValue, 0, len(fields))
+	enumFields := make([]model.FieldValue, 0, len(fields))
+
+	for _, v := range fields {
+		switch v.Type {
+		case "string":
+			stringFields = append(stringFields, v)
+		case "number":
+			numberFields = append(numberFields, v)
+		case "enum":
+			enumFields = append(enumFields, v)
+		default:
+			return fmt.Errorf("unknown field type (%s), in (field_id,task_id) = (%d, %d)", v.Type, v.FieldId, v.TaskId)
+		}
+	}
+
+	tx, err := p.store.db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to start transaction: %s", err.Error())
+	}
+
+	err = p.update(tx, stringFields, "string_values")
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	err = p.update(tx, numberFields, "number_values")
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	err = p.update(tx, enumFields, "enum_values")
+	if err != nil {
+		return err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return fmt.Errorf("failed to commit transaction: %s", err.Error())
+	}
+
+	return nil
+}
+
+func (p *PostgresFieldRepository) update(tx *sql.Tx, fields []model.FieldValue, table string) error {
+	queryTemplate := "UPDATE %s SET val=%v WHERE (field_id,task_id) = (%d, %d)"
+
+	for _, v := range fields {
+		query := fmt.Sprint(queryTemplate, table, v.Value, v.FieldId, v.TaskId)
+		err := tx.QueryRow(query).Err()
+		if err != nil {
+			tx.Rollback()
+			return fmt.Errorf("failed to update field (%d, %d): %s", v.FieldId, v.TaskId, err.Error())
+		}
+	}
+
+	return nil
+}
+
 // DeleteByFields implements FieldRepository.
-func (p *PostgresFieldRepository) DeleteByFields(fieldIds []model.ID) ([]model.FieldValue, error) {
-	ret := make([]model.FieldValue, 0, len(fieldIds))
-
-	queryTemplate := `
-		(DELETE FROM string_values WHERE field_id IN (%s) RETURNING field_id, task_id, val)
-		UNION ALL
-		(DELETE FROM number_values WHERE field_id IN (%s) RETURNING field_id, task_id, val)
-		UNION ALL
-		(DELETE FROM enum_values WHERE field_id IN (%s) RETURNING field_id, task_id, val)
-	`
-
+func (p *PostgresFieldRepository) DeleteByFields(fieldIds []model.ID) error {
 	keys := make([]string, len(fieldIds))
 	for i, v := range fieldIds {
 		keys[i] = fmt.Sprintf("%d", v)
 	}
 	keysString := strings.Join(keys, ",")
 
-	query := fmt.Sprintf(queryTemplate, keysString, keysString, keysString)
-	rows, err := p.store.db.Query(query)
+	tx, err := p.store.db.Begin()
 	if err != nil {
-		return nil, fmt.Errorf("failed to delete field values: %s", err.Error())
+		return fmt.Errorf("failed to start transaction: %s", err.Error())
 	}
 
-	for i := 0; rows.Next(); i++ {
-		var field model.FieldValue
-		err = rows.Scan(&field.FieldId, &field.TaskId, &field.Value)
-		if err != nil {
-			return nil, fmt.Errorf("failed to scan deleted field values: %s", err.Error())
-		}
-
-		ret[i] = field
+	err = p.deleteByFields(tx, keysString, "string_values")
+	if err != nil {
+		tx.Rollback()
+		return err
 	}
 
-	return ret, nil
+	err = p.deleteByFields(tx, keysString, "number_values")
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	err = p.deleteByFields(tx, keysString, "enum_values")
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return fmt.Errorf("failed to commit transaction: %s", err.Error())
+	}
+
+	return nil
+}
+
+func (p *PostgresFieldRepository) deleteByFields(tx *sql.Tx, fieldIdsString string, table string) error {
+	queryTemplate := "DELETE FROM %s WHERE field_id IN (%s)"
+	query := fmt.Sprintf(queryTemplate, table, fieldIdsString)
+
+	err := tx.QueryRow(query).Err()
+	if err != nil {
+		return fmt.Errorf("failed to delete values from %s: %s", table, err.Error())
+	}
+
+	return nil
 }
 
 // DeleteFieldvaluesByTasks implements FieldRepository.
-func (p *PostgresFieldRepository) DeleteByTasks(taskIds []model.ID) ([]model.FieldValue, error) {
-	ret := make([]model.FieldValue, 0, len(taskIds))
-
-	queryTemplate := `
-		(DELETE FROM string_values WHERE task_id IN (%s) RETURNING field_id, task_id, val)
-		UNION ALL
-		(DELETE FROM number_values WHERE task_id IN (%s) RETURNING field_id, task_id, val)
-		UNION ALL
-		(DELETE FROM enum_values WHERE task_id IN (%s) RETURNING field_id, task_id, val)
-	`
-
+func (p *PostgresFieldRepository) DeleteByTasks(taskIds []model.ID) error {
 	keys := make([]string, len(taskIds))
 	for i, v := range taskIds {
 		keys[i] = fmt.Sprintf("%d", v)
 	}
 	keysString := strings.Join(keys, ",")
 
-	query := fmt.Sprintf(queryTemplate, keysString, keysString, keysString)
-	rows, err := p.store.db.Query(query)
+	tx, err := p.store.db.Begin()
 	if err != nil {
-		return nil, fmt.Errorf("failed to delete field values: %s", err.Error())
+		return fmt.Errorf("failed to start transaction: %s", err.Error())
 	}
 
-	for i := 0; rows.Next(); i++ {
-		var field model.FieldValue
-		err = rows.Scan(&field.FieldId, &field.TaskId, &field.Value)
-		if err != nil {
-			return nil, fmt.Errorf("failed to delete selected field values: %s", err.Error())
-		}
-
-		ret[i] = field
+	err = p.deleteByTasks(tx, keysString, "string_values")
+	if err != nil {
+		tx.Rollback()
+		return err
 	}
 
-	return ret, nil
+	err = p.deleteByTasks(tx, keysString, "number_values")
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	err = p.deleteByTasks(tx, keysString, "enum_values")
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return fmt.Errorf("failed to commit transaction: %s", err.Error())
+	}
+
+	return nil
+}
+
+func (p *PostgresFieldRepository) deleteByTasks(tx *sql.Tx, taskIdsString string, table string) error {
+	queryTemplate := "DELETE FROM %s WHERE task_id IN (%s)"
+	query := fmt.Sprintf(queryTemplate, table, taskIdsString)
+
+	err := tx.QueryRow(query).Err()
+	if err != nil {
+		return fmt.Errorf("failed to delete values from %s: %s", table, err.Error())
+	}
+
+	return nil
 }
 
 // GetByFields implements FieldRepository.
 func (p *PostgresFieldRepository) GetByFields(fieldIds []model.ID) ([]model.FieldValue, error) {
 	ret := make([]model.FieldValue, 0, len(fieldIds))
-
-	queryTemplate := `
-		(SELECT field_id, task_id, val FROM string_values WHERE field_id IN (%s))
-		UNION ALL
-		(SELECT field_id, task_id, val FROM number_values WHERE field_id IN (%s))
-		UNION ALL
-		(SELECT field_id, task_id, val FROM enum_values WHERE field_id IN (%s))
-	`
 
 	keys := make([]string, len(fieldIds))
 	for i, v := range fieldIds {
@@ -383,20 +498,60 @@ func (p *PostgresFieldRepository) GetByFields(fieldIds []model.ID) ([]model.Fiel
 	}
 	keysString := strings.Join(keys, ",")
 
-	query := fmt.Sprintf(queryTemplate, keysString, keysString, keysString)
-	rows, err := p.store.db.Query(query)
+	tx, err := p.store.db.Begin()
 	if err != nil {
-		return nil, fmt.Errorf("failed to select field values: %s", err.Error())
+		return nil, fmt.Errorf("failed to start transaction: %s", err.Error())
 	}
 
-	for i := 0; rows.Next(); i++ {
+	stringFields, err := p.getByFieldIds(tx, keysString, len(keys), "string", "string_values")
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
+	numberFields, err := p.getByFieldIds(tx, keysString, len(keys), "number", "number_values")
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
+	enumFields, err := p.getByFieldIds(tx, keysString, len(keys), "enum", "enum_values")
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %s", err.Error())
+	}
+
+	ret = append(ret, stringFields...)
+	ret = append(ret, numberFields...)
+	ret = append(ret, enumFields...)
+
+	return ret, nil
+}
+
+func (p *PostgresFieldRepository) getByFieldIds(tx *sql.Tx, fieldIdsString string, count int, typeString string, table string) ([]model.FieldValue, error) {
+	ret := make([]model.FieldValue, 0, count)
+
+	queryTemplate := "SELECT field_id, task_id, val FROM %s WHERE field_id IN (%s)"
+	query := fmt.Sprintf(queryTemplate, table, fieldIdsString)
+
+	rows, err := tx.Query(query)
+	if err != nil {
+		return nil, fmt.Errorf("failed to select values from %s: %s", table, err.Error())
+	}
+
+	for rows.Next() {
 		var field model.FieldValue
 		err = rows.Scan(&field.FieldId, &field.TaskId, &field.Value)
 		if err != nil {
-			return nil, fmt.Errorf("failed to scan selected field values: %s", err.Error())
+			return nil, fmt.Errorf("failed to scan selected values from %s: %s", table, err.Error())
 		}
-
-		ret[i] = field
+		field.Type = typeString
+		ret = append(ret, field)
 	}
 
 	return ret, nil
