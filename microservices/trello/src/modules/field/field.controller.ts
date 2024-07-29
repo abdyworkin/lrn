@@ -20,7 +20,6 @@ export class FieldController {
 
     @ApiOperation({ summary: 'Получение мета данных поля по ID' })
     @ApiParam({ name: 'projectId', required: true, description: 'ID проекта' })
-    
     @ApiResponse({ status: 404, type: ErrorResponse })
     @Get('/:fieldId')
     @Roles(Role.User)
@@ -56,7 +55,6 @@ export class FieldController {
     @Roles(Role.ProjectCreator)
     async updateField(
         @GetProjectId() projectId: number,
-        @Param('fieldId', ParseIntPipe) fieldId: number,
         @Body() body: EditFieldDto,
     ) {
         const result = await this.fieldService.runInTransaction(async manager => await this.fieldService.updateFields(projectId, [ body ], manager))

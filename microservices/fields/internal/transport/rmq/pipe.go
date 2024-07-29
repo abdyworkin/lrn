@@ -2,18 +2,16 @@ package rmq
 
 import (
 	"fieldval/internal/transport"
+	"fmt"
 	"log/slog"
 )
 
-type RabbitRequest[T any] struct {
-	Pattern struct {
-		Action string `json:"action"`
-	} `json:"pattern"`
-	Data T `json:"data"`
+func objToString(obj interface{}) string {
+	return fmt.Sprintf("%+v", obj)
 }
 
 func pipe[Request any, Response any](
-	decoder func(data []byte) (RabbitRequest[Request], error),
+	decoder func(data []byte) (Request, error),
 	endpoint func(Request) (Response, error),
 	encoder func(interface{}) ([]byte, error),
 	logger *slog.Logger,
@@ -25,17 +23,23 @@ func pipe[Request any, Response any](
 			return transport.EncodeError(err)
 		}
 
+		logger.Debug("Incoming request", "request", objToString(request))
+
 		err = transport.ValidateRequest(request)
 		if err != nil {
 			logger.Debug("Failed validate request", "error", err.Error())
 			return transport.EncodeError(err)
 		}
 
-		response, err := endpoint(request.Data)
+		logger.Debug("Request is valid")
+
+		response, err := endpoint(request)
 		if err != nil {
 			logger.Error("Failed process request", "error", err.Error())
 			return transport.EncodeError(err)
 		}
+
+		logger.Debug("Request processed", "request", objToString(request), "response", objToString(response))
 
 		responseData, err := encoder(response)
 		if err != nil {

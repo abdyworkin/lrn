@@ -4,14 +4,13 @@ services:
   pgcore:
     image: postgres:13
     environment:
-        - POSTGRES_USER=root
-        - POSTGRES_PASSWORD=root
-        - POSTGRES_DB=trello
+      - POSTGRES_USER=root
+      - POSTGRES_PASSWORD=root
+      - POSTGRES_DB=trello
     volumes:
-        - "./dbdata/trllodb:/var/lib/postgresql/data:rw"
+      - "./dbdata/trllodb:/var/lib/postgresql/data:rw"
     ports:
-        - "5432:5432"
-
+      - "5432:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U root -d trello"]
       interval: 15s
@@ -21,31 +20,31 @@ services:
   pgauth:
     image: postgres:13
     environment:
-        - POSTGRES_USER=root
-        - POSTGRES_PASSWORD=root
-        - POSTGRES_DB=auth
+      - POSTGRES_USER=root
+      - POSTGRES_PASSWORD=root
+      - POSTGRES_DB=auth
     volumes:
-        - "./dbdata/authdb:/var/lib/postgresql/data:rw"
+      - "./dbdata/authdb:/var/lib/postgresql/data:rw"
     ports:
-        - "5433:5432"
+      - "5433:5432"
     healthcheck:
-        test: ["CMD-SHELL", "pg_isready -U root -d auth"]
-        interval: 15s
-        timeout: 5s
-        retries: 15
+      test: ["CMD-SHELL", "pg_isready -U root -d auth"]
+      interval: 15s
+      timeout: 5s
+      retries: 15
   
   core:
     build:
       context: ./trello/
       dockerfile: ./Dockerfile
     ports:
-      - 3000:3000
+      - "3000:3000"
     depends_on:
       pgcore:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
-    environment: #Заменить на URL
+    environment:
       - POSTGRES_HOST=pgcore
       - POSTGRES_DB=trello
       - POSTGRES_USER=root
@@ -58,15 +57,15 @@ services:
       context: ./auth/
       dockerfile: ./Dockerfile
     ports:
-      - 3010:3010
+      - "3010:3000"
     depends_on:
       pgauth:
         condition: service_healthy
       rabbitmq: 
         condition: service_healthy
     environment:
-      - DATABASE_URL=postgres://root:root@pgauth:5432/auth
-      - SERVER_PORT=3010
+      - DATABASE_URL=postgres://root:root@pgauth:5432/auth?sslmode=disable
+      - SERVER_PORT=3000
       - JWT_SECRET=SOMELONGJWTSECRET
       - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
 
@@ -77,11 +76,40 @@ services:
       interval: 15s
       timeout: 5s
       retries: 30
-
     ports:
       - "5672:5672"
       - "15672:15672"
 
+  pgfields:
+    image: postgres:13
+    environment:
+      - POSTGRES_USER=root
+      - POSTGRES_PASSWORD=root
+      - POSTGRES_DB=fields
+    volumes:
+      - "./dbdata/fieldsdb:/var/lib/postgresql/data:rw"
+    ports:
+      - "5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U root -d fields"]
+      interval: 15s
+      timeout: 5s
+      retries: 15
+
+  fields:
+    build:
+      context: ./fields/
+      dockerfile: ./Dockerfile
+    ports:
+      - "3020:3000"
+    depends_on:
+      pgfields:
+        condition: service_healthy
+      rabbitmq: 
+        condition: service_healthy
+    environment:
+      - DATABASE_URL=postgres://root:root@pgfields:5432/fields?sslmode=disable
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq:5672/
 
   # pgadmin:
   #   image: dpage/pgadmin4

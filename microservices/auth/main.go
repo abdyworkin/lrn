@@ -85,5 +85,4 @@ func main() {
 	go transport.SetupRabbitMQ(authService, endpoints)
 
 	log.Println("exit", <-errChan)
-
 }

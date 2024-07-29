@@ -6,5 +6,5 @@ type RabbitMQServer interface {
 	Open() error
 	Close() error
 
-	StartHandlers() error
+	Start(queue string) error
 }

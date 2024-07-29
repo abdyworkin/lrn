@@ -2,11 +2,9 @@ import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinTable, UsingJoin
 import { ApiProperty, ApiPropertyOptional } from "@nestjs/swagger"
 import { List } from "../list/list.entity"
 import { Project } from "../project/project.entity"
-import { TaskFieldNumber } from "src/entities/task_field_number.entity"
-import { TaskFieldString } from "src/entities/task_field_string.entity"
-import { TaskFieldEnum } from "src/entities/task_field_enum.entity"
 import { User } from "../auth/auth.dto"
-import { UserOutputData } from "src/entities/user_to_project.entity"
+import { UserOutputData } from "../project/user_to_project.entity"
+import { FieldValue } from "../fieldval/fieldval.dto"
 
 @Entity('tasks')
 export class Task {
@@ -27,15 +25,16 @@ export class Task {
 
     author: User
 
-    @OneToMany(() => TaskFieldNumber, t => t.task)
-    numberFields: TaskFieldNumber[]
+    // @OneToMany(() => TaskFieldNumber, t => t.task)
+    // numberFields: TaskFieldNumber[]
 
-    @OneToMany(() => TaskFieldString, t => t.task)
-    stringFields: TaskFieldString[]
+    // @OneToMany(() => TaskFieldString, t => t.task)
+    // stringFields: TaskFieldString[]
 
-    @OneToMany(() => TaskFieldEnum, t => t.task)
-    enumFields: TaskFieldEnum[]
-    
+    // @OneToMany(() => TaskFieldEnum, t => t.task)
+    // enumFields: TaskFieldEnum[]
+    fields: FieldValue[]
+
     @ManyToOne(() => List, {
         cascade: true,
         onDelete: "CASCADE"
@@ -62,7 +61,7 @@ export class Task {
 
 export class TaskOutputData {
     static get(task: Task): TaskOutputData  {
-        let fields = [ ...(task?.stringFields || []), ...(task?.numberFields || []), ...(task?.enumFields || []) ].map(e => ({ id: e.projectTaskFieldId, value: e.value }))
+        //let fields = [ ...(task?.stringFields || []), ...(task?.numberFields || []), ...(task?.enumFields || []) ].map(e => ({ id: e.projectTaskFieldId, value: e.value }))
 
         const data: TaskOutputData = {
             id: task.id,
@@ -71,7 +70,7 @@ export class TaskOutputData {
             position: task.position,
             authorId: task.authorId,
             author: task.author,
-            fields: fields.sort((a, b) => a.id - b.id),
+            fields: task.fields || [],
             listId: task.listId,
             createdAt: task.createdAt
         }
@@ -98,8 +97,8 @@ export class TaskOutputData {
     @ApiProperty({ example: '1', description: 'Уникальный идентификатор автора задачи' })
     authorId: number
 
-    @ApiProperty({ type: () => [FieldValueOutputData], description: 'Значения полей задачи' })
-    fields: FieldValueOutputData[]
+    @ApiProperty({ type: () => [FieldValue], description: 'Значения полей задачи' })
+    fields: FieldValue[]
 
     @ApiProperty({ example: '1', description: "Уникальный идетификатор списка, в котором находится задача" })
     listId: number
@@ -107,7 +106,6 @@ export class TaskOutputData {
     @ApiProperty({ example: '1234512341234', description: "Временная метка создания задачи" })
     createdAt: number
 }
-
 
 export class FieldValueOutputData {
     @ApiProperty({ example: '1', description: "Уникальный идентификатор поля" })

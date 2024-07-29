@@ -44,7 +44,7 @@ func main() {
 			logger.Error("failed start rmq server", "error", err.Error())
 		}
 
-		if err := rmqServer.StartHandlers(); err != nil {
+		if err := rmqServer.Start("fields"); err != nil {
 			errChan <- err
 			logger.Error("failed start RabbitMQ handlers", "error", err.Error())
 		}

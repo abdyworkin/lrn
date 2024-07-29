@@ -4,10 +4,12 @@ import { FieldType, ProjectTaskField, ProjectTaskFieldEnumOptions } from 'src/mo
 import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm';
 import { DataSource, EntityManager, In, QueryRunner, Repository } from 'typeorm';
 import { AddFieldDto, EditFieldDto } from './field.dto';
+import { FieldvalService } from '../fieldval/fieldval.service';
 
 @Injectable()
 export class FieldService {
     constructor(
+        private readonly fieldvalService: FieldvalService,
         @InjectRepository(ProjectTaskField)
         private readonly projectTaskFieldRepository: Repository<ProjectTaskField>,
         @InjectRepository(ProjectTaskFieldEnumOptions)
@@ -93,6 +95,11 @@ export class FieldService {
     
                 field.enumOptions = []
                 await optionsRepo.delete({ fieldId: field.id });
+
+                const result = await this.fieldvalService.deleteByField([ field.id ])
+                if (!result) {
+                    throw new InternalServerErrorException(`Failed to delete field id(${field.id})`)
+                }
 
                 // Если поле имеет тип Enum, сначала удаляем старые опции
                 if (fieldData.type === FieldType.Enum && fieldData.options) {

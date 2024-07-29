@@ -2,7 +2,7 @@ import { Column, Entity, ManyToMany, OneToMany, PrimaryGeneratedColumn } from "t
 import { ApiProperty } from "@nestjs/swagger"
 import { List, ListOutputData } from "../list/list.entity"
 import { Task } from "../task/task.entity"
-import { UserToProject, ProjectUserOutputData } from "../../entities/user_to_project.entity"
+import { UserToProject, ProjectUserOutputData } from "./user_to_project.entity"
 import { ProjectTaskFieldOutputData, ProjectTaskField } from "src/modules/field/project_field.entity"
 
 @Entity('projects')

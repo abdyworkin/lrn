@@ -1,6 +1,6 @@
 import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
 import { ApiOperation, ApiProperty } from "@nestjs/swagger";
-import { Project } from "../modules/project/project.entity";
+import { Project } from "./project.entity";
 import { User } from "src/modules/auth/auth.dto";
 
 // Для простоты

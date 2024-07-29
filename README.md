@@ -15,6 +15,7 @@
     - **Auth Service:**
       - Откройте [Swagger UI для Auth Service](http://localhost:3010/swagger)
 
+3. Работу с пользователями добавил, потому что дурной и невнимательно прочитал задание
 ---
 
 ### Запуск CRUD Golang

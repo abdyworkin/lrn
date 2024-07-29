@@ -2,20 +2,18 @@ import { ForbiddenException, Inject, Injectable, NotFoundException } from '@nest
 import { InjectRepository } from '@nestjs/typeorm';
 import { hashSync } from 'bcryptjs';
 import { DataSource, EntityManager, Repository } from 'typeorm';
-import { UserToProject, ProjectRoles, ProjectUserOutputData } from '../../entities/user_to_project.entity';
+import { UserToProject, ProjectRoles, ProjectUserOutputData } from './user_to_project.entity';
 import { Project } from './project.entity';
 import { FieldService } from '../field/field.service';
 import { CreateProjectDto, UpdateProjectDto } from './project.dto';
 import { AuthService } from '../auth/auth.service';
 import { User } from '../auth/auth.dto';
+import { FieldvalService } from '../fieldval/fieldval.service';
 
 const projectRelations = [
     'users',
     'fields.enumOptions',
     'lists.tasks.project.fields',
-    'lists.tasks.stringFields',
-    'lists.tasks.numberFields',
-    'lists.tasks.enumFields',
 ]
 
 @Injectable()
@@ -23,6 +21,8 @@ export class ProjectService {
     constructor(
         @Inject()
         private readonly fieldService: FieldService,
+        @Inject()
+        private readonly fieldvalService: FieldvalService,
         @Inject()
         private readonly authService: AuthService,
         @InjectRepository(Project)
@@ -33,7 +33,10 @@ export class ProjectService {
     ) {}
 
     async runInTransaction(func: (manager: EntityManager) => Promise<any>) {
-        return await this.dataSource.transaction(async manager => await func(manager))
+        const result = await this.dataSource.transaction(async manager => {
+                return await func(manager)
+        })
+        return result
     }
 
     async getUserRole(projectId: number, userId: number, manager?: EntityManager): Promise<ProjectRoles | undefined> {
@@ -54,7 +57,7 @@ export class ProjectService {
 
         const projects = []
         for (let p of projectsRelated) {
-            projects.push(await this.populateUsers(p.project))
+            projects.push(await this.fieldvalService.populateProject(await this.populateUsers(p.project)))
         }
 
         return projects
@@ -63,7 +66,11 @@ export class ProjectService {
     async getProject(id: number, manager?: EntityManager) {
         const projectRepo = manager?.getRepository(Project) || this.projectRepository
         const project = await projectRepo.findOne({ where: { id }, relations: projectRelations })
-        return await this.populateUsers(project)
+
+        const pWithUsers = await this.populateUsers(project)
+        const pWithFields = await this.fieldvalService.populateProject(pWithUsers)
+
+        return pWithFields
     }
 
     async createProject({ title, description, fields }: CreateProjectDto, userId: number, manager?: EntityManager): Promise<Project> {
@@ -77,6 +84,7 @@ export class ProjectService {
         newProject.description = description
         newProject.inviteCode = inviteCode
         newProject.inviteExpires = inviteExpires
+        newProject.lists = []
 
         await projectRepo.save(newProject)
 
@@ -90,7 +98,10 @@ export class ProjectService {
         userToProject.role = ProjectRoles.Creator
         newProject.users = [await userToProjectRepo.save(userToProject)]
 
-        return await this.getProject(newProject.id, manager)
+        const projectWithUsers = await this.populateUsers(newProject)
+        const projectWithFields = await this.fieldvalService.populateProject(projectWithUsers)
+
+        return projectWithFields
     }
 
     async updateProject(projectId: number, { title, description, fields }: UpdateProjectDto, manager?: EntityManager): Promise<Project | undefined> {
@@ -106,12 +117,23 @@ export class ProjectService {
             project.fields = updatedFields
         }
 
-        return this.populateUsers(await projectRepo.save(project))
+        const savedProject = await projectRepo.save(project)
+        const projectWithUsers = await this.populateUsers(savedProject)
+        const projectWithFields = await this.fieldvalService.populateProject(projectWithUsers)
+
+        return projectWithFields
     }
 
     async deleteProject(projectId: number, manager?: EntityManager) {
         const projectRepo = manager?.getRepository(Project) || this.projectRepository
-        const {affected} = await projectRepo.delete(projectId)
+        const project = await this.getProject(projectId, manager)
+        
+        const { affected } = await projectRepo.delete(projectId)
+
+        if (affected > 0) {
+            await this.fieldvalService.deleteByField(project.fields.map(e => e.id))
+        }
+
         return affected > 0
     }
 

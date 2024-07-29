@@ -6,6 +6,9 @@ import { CreateListDto, UpdateListMetaDto } from './list.dto';
 import { AuthService } from '../auth/auth.service';
 import { User } from '../auth/auth.dto';
 
+
+//TODO: add fieldvals
+
 @Injectable()
 export class ListService {
     constructor(

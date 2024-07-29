@@ -1,6 +1,7 @@
 package rmq
 
 import (
+	"encoding/json"
 	"fieldval/internal/service"
 	"fieldval/internal/transport"
 	"fmt"
@@ -8,6 +9,18 @@ import (
 
 	"github.com/streadway/amqp"
 )
+
+var InvalidRequestResponse = []byte(`{"type": "error", "message": "invalid request"}`)
+var HandlerNotFoundResponse = []byte(`{"type": "error", "message": "handler not found"}`)
+
+type RabbitRequest struct {
+	Pattern struct {
+		Action string `json:"action"`
+	} `json:"pattern"`
+	Data json.RawMessage `json:"data"`
+}
+
+//TODO: отрефакторить, слушать только одну очередь
 
 var _ RabbitMQServer = &DefaultRabbitMQServer{}
 
@@ -17,14 +30,17 @@ type DefaultRabbitMQServer struct {
 	conn    *amqp.Connection
 	channel *amqp.Channel
 
+	handlers map[string]RabbitHandler
+
 	service service.Service
 }
 
 func NewRabbitMQServer(service service.Service, logger *slog.Logger, config *Config) *DefaultRabbitMQServer {
 	return &DefaultRabbitMQServer{
-		logger:  logger,
-		config:  config,
-		service: service,
+		logger:   logger,
+		config:   config,
+		service:  service,
+		handlers: make(map[string]RabbitHandler),
 	}
 }
 
@@ -61,8 +77,15 @@ func (d *DefaultRabbitMQServer) Close() error {
 	return nil
 }
 
+func (d *DefaultRabbitMQServer) addHandler(name string, handler RabbitHandler) error {
+	d.handlers[name] = handler
+	return nil
+}
+
 // Handle implements RabbitMQServer.
-func (d *DefaultRabbitMQServer) startQueue(queue string, handler RabbitHandler) error {
+func (d *DefaultRabbitMQServer) Start(queue string) error {
+	d.setupHandlers()
+
 	q, err := d.channel.QueueDeclare(
 		queue,
 		false,
@@ -90,9 +113,50 @@ func (d *DefaultRabbitMQServer) startQueue(queue string, handler RabbitHandler) 
 
 	go func() {
 		for message := range messages {
-			d.logger.Debug("New message", "message", len(message.Body))
+			var rabbitMessage RabbitRequest
+			err := json.Unmarshal(message.Body, &rabbitMessage)
+			if err != nil {
+				d.logger.Debug("failed unmarshal rabbit request", "error", err.Error())
+				err = d.channel.Publish(
+					"",
+					message.ReplyTo,
+					false,
+					false,
+					amqp.Publishing{
+						ContentType:   "application/json",
+						CorrelationId: message.CorrelationId,
+						Body:          InvalidRequestResponse,
+					},
+				)
+				if err != nil {
+					d.logger.Debug("failed to response an error", "error", err.Error())
+				}
+				continue
+			}
 
-			processedData := handler(message.Body)
+			d.logger.Debug("New request", "action", rabbitMessage.Pattern.Action)
+
+			handler, ok := d.handlers[rabbitMessage.Pattern.Action]
+			if !ok {
+				d.logger.Debug("failed to find handler", "handler", rabbitMessage.Pattern.Action)
+				err = d.channel.Publish(
+					"",
+					message.ReplyTo,
+					false,
+					false,
+					amqp.Publishing{
+						ContentType:   "application/json",
+						CorrelationId: message.CorrelationId,
+						Body:          HandlerNotFoundResponse,
+					},
+				)
+				if err != nil {
+					d.logger.Debug("failed to response an error", "error", err.Error())
+				}
+				continue
+			}
+
+			processedData := handler(rabbitMessage.Data)
 
 			err = d.channel.Publish(
 				"",
@@ -105,7 +169,6 @@ func (d *DefaultRabbitMQServer) startQueue(queue string, handler RabbitHandler) 
 					Body:          processedData,
 				},
 			)
-
 			if err != nil {
 				d.logger.Error("failed to publish to queue", "queue", queue)
 			} else {
@@ -117,86 +180,61 @@ func (d *DefaultRabbitMQServer) startQueue(queue string, handler RabbitHandler) 
 	return nil
 }
 
-func (d *DefaultRabbitMQServer) StartHandlers() error {
-	err := d.startQueue("fields.create", pipe[transport.CreateRequest, transport.CreateResponse](
+func (d *DefaultRabbitMQServer) setupHandlers() error {
+	d.addHandler("fields.create", pipe[transport.CreateRequest, transport.CreateResponse](
 		transport.JsonDecoder,
 		transport.NewCreateEndpoint(d.service),
 		transport.JsonEncoder,
 		d.logger,
 	))
-	if err != nil {
-		return err
-	}
 
-	err = d.startQueue("fields.update", pipe[transport.UpdateRequest, transport.UpdateResponse](
+	d.addHandler("fields.update", pipe[transport.UpdateRequest, transport.UpdateResponse](
 		transport.JsonDecoder,
 		transport.NewUpdateEndpoint(d.service),
 		transport.JsonEncoder,
 		d.logger,
 	))
-	if err != nil {
-		return err
-	}
 
-	err = d.startQueue("fields.delete", pipe[transport.DeleteRequest, transport.DeleteResponse](
+	d.addHandler("fields.delete", pipe[transport.DeleteRequest, transport.DeleteResponse](
 		transport.JsonDecoder,
 		transport.NewDeleteEndpoint(d.service),
 		transport.JsonEncoder,
 		d.logger,
 	))
-	if err != nil {
-		return err
-	}
-
-	err = d.startQueue("fields.delete.taskid", pipe[transport.DeleteByTaskIdsRequest, transport.DeleteByTaskIdsResponse](
+	d.addHandler("fields.delete.taskid", pipe[transport.DeleteByTaskIdsRequest, transport.DeleteByTaskIdsResponse](
 		transport.JsonDecoder,
 		transport.NewDeleteByTaskIdsEndpoint(d.service),
 		transport.JsonEncoder,
 		d.logger,
 	))
-	if err != nil {
-		return err
-	}
 
-	err = d.startQueue("fields.delete.fieldid", pipe[transport.DeleteByFieldIdsRequest, transport.DeleteByFieldIdsResponse](
+	d.addHandler("fields.delete.fieldid", pipe[transport.DeleteByFieldIdsRequest, transport.DeleteByFieldIdsResponse](
 		transport.JsonDecoder,
 		transport.NewDeleteByFieldIdsEndpoint(d.service),
 		transport.JsonEncoder,
 		d.logger,
 	))
-	if err != nil {
-		return err
-	}
 
-	err = d.startQueue("fields.get", pipe[transport.GetRequest, transport.GetResponse](
+	d.addHandler("fields.get", pipe[transport.GetRequest, transport.GetResponse](
 		transport.JsonDecoder,
 		transport.NewGetEndpoint(d.service),
 		transport.JsonEncoder,
 		d.logger,
 	))
-	if err != nil {
-		return err
-	}
 
-	err = d.startQueue("fields.get.taskid", pipe[transport.GetByTaskIdsRequest, transport.GetByTaskIdsResponse](
+	d.addHandler("fields.get.taskid", pipe[transport.GetByTaskIdsRequest, transport.GetByTaskIdsResponse](
 		transport.JsonDecoder,
 		transport.NewGetByTaskIdsEndpoint(d.service),
 		transport.JsonEncoder,
 		d.logger,
 	))
-	if err != nil {
-		return err
-	}
 
-	err = d.startQueue("fields.get.fieldid", pipe[transport.GetByFieldIdsRequest, transport.GetByFieldIdsResponse](
+	d.addHandler("fields.get.fieldid", pipe[transport.GetByFieldIdsRequest, transport.GetByFieldIdsResponse](
 		transport.JsonDecoder,
 		transport.NewGetByFieldIdsEndpoint(d.service),
 		transport.JsonEncoder,
 		d.logger,
 	))
-	if err != nil {
-		return err
-	}
 
 	return nil
 }

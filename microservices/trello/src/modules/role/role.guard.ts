@@ -1,9 +1,9 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Inject, Injectable } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
 import { ROLES_KEY, Role } from "./role.decorator";
-import { ProjectRoles } from "src/entities/user_to_project.entity";
 import { ProjectService } from "../project/project.service";
 import { TaskService } from "../task/task.service";
+import { ProjectRoles } from "../project/user_to_project.entity";
 
 @Injectable()
 export class RoleGuard implements CanActivate {

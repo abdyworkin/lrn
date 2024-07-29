@@ -6,6 +6,7 @@ import { ProjectTaskField, ProjectTaskFieldEnumOptions } from 'src/modules/field
 import { ProjectModule } from '../project/project.module';
 import { TaskModule } from '../task/task.module';
 import { AuthModule } from '../auth/auth.module';
+import { FieldvalModule } from '../fieldval/fieldval.module';
 
 @Module({
   controllers: [FieldController],
@@ -15,6 +16,7 @@ import { AuthModule } from '../auth/auth.module';
     forwardRef(() => ProjectModule),
     AuthModule,
     forwardRef(() => TaskModule),
+    FieldvalModule,
   ],
   exports: [FieldService]
 })

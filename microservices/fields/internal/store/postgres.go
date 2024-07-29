@@ -88,6 +88,8 @@ func (p *PostgresFieldRepository) Create(fields []model.FieldValue) error {
 			numberValues = append(numberValues, v)
 		case "enum":
 			enumValues = append(enumValues, v)
+		default:
+			return fmt.Errorf("unknown field type: %s", v.Type)
 		}
 	}
 
@@ -123,12 +125,33 @@ func (p *PostgresFieldRepository) Create(fields []model.FieldValue) error {
 }
 
 func (p *PostgresFieldRepository) create(tx *sql.Tx, fields []model.FieldValue, table string) error {
+	if len(fields) == 0 {
+		return nil
+	}
+
 	queryTemplate := "INSERT INTO %s (field_id, task_id, val) VALUES (%s)"
 	values := make([]string, len(fields))
 	for i, v := range fields {
-		values[i] = fmt.Sprintf("(%d,%d,%v)", v.FieldId, v.TaskId, v.Value)
+		if len(fields) > 1 { // кОсТыЛь
+			if v.Type == "string" {
+				values[i] = fmt.Sprintf("(%d,%d,'%s')", v.FieldId, v.TaskId, v.Value)
+			} else {
+				values[i] = fmt.Sprintf("(%d,%d,%v)", v.FieldId, v.TaskId, v.Value)
+			}
+		} else {
+			if v.Type == "string" {
+				values[i] = fmt.Sprintf("%d,%d,'%s'", v.FieldId, v.TaskId, v.Value)
+			} else {
+				values[i] = fmt.Sprintf("%d,%d,%v", v.FieldId, v.TaskId, v.Value)
+			}
+		}
+
 	}
-	query := fmt.Sprintf(queryTemplate, table, strings.Join(values, ","))
+
+	valuesString := strings.Join(values, ",")
+	p.store.logger.Debug("Inserting values", "values", valuesString)
+
+	query := fmt.Sprintf(queryTemplate, table, valuesString)
 	if err := tx.QueryRow(query).Err(); err != nil {
 		return fmt.Errorf("failed to insert into %s: %s", table, err.Error())
 	}
@@ -138,6 +161,10 @@ func (p *PostgresFieldRepository) create(tx *sql.Tx, fields []model.FieldValue, 
 
 // Delete implements FieldRepository.
 func (p *PostgresFieldRepository) Delete(fieldIds []model.FieldValuePrimaryKeys) error {
+	if len(fieldIds) == 0 {
+		return nil
+	}
+
 	keys := make([]string, len(fieldIds))
 	for i, v := range fieldIds {
 		keys[i] = fmt.Sprintf("(%s,%s)", v.FieldId, v.TaskId)
@@ -231,6 +258,10 @@ func (p *PostgresFieldRepository) Get(fieldIds []model.FieldValuePrimaryKeys) ([
 }
 
 func (p *PostgresFieldRepository) get(tx *sql.Tx, fieldIdsString string, idsCount int, typeString string, table string) ([]model.FieldValue, error) {
+	if idsCount == 0 {
+		return []model.FieldValue{}, nil
+	}
+
 	ret := make([]model.FieldValue, 0, idsCount)
 
 	queryTemplate := "SELECT field_id, task_id, val FROM %s WHERE (field_id, task_id) IN (%s)"
@@ -299,6 +330,10 @@ func (p *PostgresFieldRepository) GetByTaskIds(taskIds []model.ID) ([]model.Fiel
 }
 
 func (p *PostgresFieldRepository) getByTaskIds(tx *sql.Tx, taskIdsString string, count int, typeString string, table string) ([]model.FieldValue, error) {
+	if count == 0 {
+		return []model.FieldValue{}, nil
+	}
+
 	ret := make([]model.FieldValue, 0, count)
 
 	queryTemplate := "SELECT field_id, task_id, val FROM %s WHERE task_id IN (%s)"
@@ -372,10 +407,18 @@ func (p *PostgresFieldRepository) Update(fields []model.FieldValue) error {
 }
 
 func (p *PostgresFieldRepository) update(tx *sql.Tx, fields []model.FieldValue, table string) error {
+	if len(fields) == 0 {
+		return nil
+	}
+
 	queryTemplate := "UPDATE %s SET val=%v WHERE (field_id,task_id) = (%d, %d)"
 
 	for _, v := range fields {
-		query := fmt.Sprint(queryTemplate, table, v.Value, v.FieldId, v.TaskId)
+		if v.Type == "string" {
+			v.Value = fmt.Sprintf("'%s'", v.Value)
+		}
+
+		query := fmt.Sprintf(queryTemplate, table, v.Value, v.FieldId, v.TaskId)
 		err := tx.QueryRow(query).Err()
 		if err != nil {
 			tx.Rollback()
@@ -388,6 +431,9 @@ func (p *PostgresFieldRepository) update(tx *sql.Tx, fields []model.FieldValue, 
 
 // DeleteByFields implements FieldRepository.
 func (p *PostgresFieldRepository) DeleteByFields(fieldIds []model.ID) error {
+	if len(fieldIds) == 0 {
+		return nil
+	}
 	keys := make([]string, len(fieldIds))
 	for i, v := range fieldIds {
 		keys[i] = fmt.Sprintf("%d", v)
@@ -439,6 +485,10 @@ func (p *PostgresFieldRepository) deleteByFields(tx *sql.Tx, fieldIdsString stri
 
 // DeleteFieldvaluesByTasks implements FieldRepository.
 func (p *PostgresFieldRepository) DeleteByTasks(taskIds []model.ID) error {
+	if len(taskIds) == 0 {
+		return nil
+	}
+
 	keys := make([]string, len(taskIds))
 	for i, v := range taskIds {
 		keys[i] = fmt.Sprintf("%d", v)
@@ -490,6 +540,10 @@ func (p *PostgresFieldRepository) deleteByTasks(tx *sql.Tx, taskIdsString string
 
 // GetByFields implements FieldRepository.
 func (p *PostgresFieldRepository) GetByFields(fieldIds []model.ID) ([]model.FieldValue, error) {
+	if len(fieldIds) == 0 {
+		return []model.FieldValue{}, nil
+	}
+
 	ret := make([]model.FieldValue, 0, len(fieldIds))
 
 	keys := make([]string, len(fieldIds))

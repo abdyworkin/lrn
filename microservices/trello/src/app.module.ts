@@ -7,13 +7,9 @@ import { ListModule } from './modules/list/list.module';
 import { List } from './modules/list/list.entity';
 import { Project } from './modules/project/project.entity';
 import { Task } from './modules/task/task.entity';
-import { UserToProject } from './entities/user_to_project.entity';
+import { UserToProject } from './modules/project/user_to_project.entity';
 import { ProjectTaskFieldEnumOptions, ProjectTaskField } from './modules/field/project_field.entity';
-import { TaskFieldEnum } from './entities/task_field_enum.entity';
-import { TaskFieldString } from './entities/task_field_string.entity';
-import { TaskFieldNumber } from './entities/task_field_number.entity';
 import { FieldModule } from './modules/field/field.module';
-import { ClientsModule, Transport } from '@nestjs/microservices';
 import { AuthModule } from './modules/auth/auth.module';
 import { FieldvalModule } from './modules/fieldval/fieldval.module';
 
@@ -24,9 +20,6 @@ const entities = [
   List,
   ProjectTaskField,
   ProjectTaskFieldEnumOptions,
-  TaskFieldEnum,
-  TaskFieldString,
-  TaskFieldNumber,
 ]
 
 @Module({
