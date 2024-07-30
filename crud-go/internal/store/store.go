@@ -4,6 +4,8 @@ import (
 	"crud/internal/model"
 )
 
+//go:generate mockgen -source=store.go -destination=mocks/mock.go
+
 type Store interface {
 	Open() error
 	Close() error

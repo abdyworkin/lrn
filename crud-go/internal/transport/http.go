@@ -21,7 +21,7 @@ func NewHttpServer(logger *slog.Logger, store store.Store, config *HttpConfig, s
 		config:  config,
 		logger:  logger,
 		router:  mux.NewRouter(),
-		service: service.NewTodoService(logger, store, serviceConfig),
+		service: service.NewTodoService(logger, store.Todos(), serviceConfig),
 	}
 }
 
